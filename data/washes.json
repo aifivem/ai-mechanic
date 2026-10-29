@@ -1,0 +1,42 @@
+{
+  "strawberry": {
+    "label": "Strawberry Car Wash",
+    "coords": {
+      "x": 25.29,
+      "y": -1391.96,
+      "z": 29.33
+    }
+  },
+  "davis": {
+    "label": "Davis Car Wash",
+    "coords": {
+      "x": 174.18,
+      "y": -1736.66,
+      "z": 29.35
+    }
+  },
+  "paleto": {
+    "label": "Paleto Car Wash",
+    "coords": {
+      "x": -74.56,
+      "y": 6427.87,
+      "z": 31.44
+    }
+  },
+  "sandy": {
+    "label": "Sandy Shores Car Wash",
+    "coords": {
+      "x": 1363.22,
+      "y": 3592.7,
+      "z": 34.92
+    }
+  },
+  "little_seoul": {
+    "label": "Little Seoul Car Wash",
+    "coords": {
+      "x": -699.62,
+      "y": -932.7,
+      "z": 19.01
+    }
+  }
+}

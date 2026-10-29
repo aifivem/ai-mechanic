@@ -1,0 +1,19 @@
+{
+  "accounts": [
+    "cash",
+    "bank"
+  ],
+  "repairPoint": 2,
+  "performance": 2500,
+  "turbo": 15000,
+  "xenon": 2000,
+  "cosmetic": 750,
+  "wheels": 1500,
+  "paint": 1000,
+  "tint": 500,
+  "plate": 300,
+  "washPrice": 20,
+  "washSeconds": 6,
+  "kitEngine": 750,
+  "kitSeconds": 10
+}

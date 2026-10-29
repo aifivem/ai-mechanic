@@ -1,0 +1,97 @@
+{
+  "bennys": {
+    "label": "Benny's Motorworks",
+    "job": "",
+    "coords": {
+      "x": -205.6,
+      "y": -1310.6,
+      "z": 31.3
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 1.2,
+    "stash": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lscustoms_burton": {
+    "label": "LS Customs Burton",
+    "job": "mechanic",
+    "coords": {
+      "x": -337.38,
+      "y": -136.92,
+      "z": 39.01
+    },
+    "radius": 10,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 0.8,
+    "stash": {
+      "x": -319.19,
+      "y": -131.9,
+      "z": 37.98
+    }
+  },
+  "lscustoms_airport": {
+    "label": "LS Customs Airport",
+    "job": "",
+    "coords": {
+      "x": -1155.5,
+      "y": -2007.2,
+      "z": 13.2
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 1,
+    "stash": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lscustoms_harmony": {
+    "label": "LS Customs Harmony",
+    "job": "",
+    "coords": {
+      "x": 1174.8,
+      "y": 2640.2,
+      "z": 37.8
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 1,
+    "stash": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "beekers_paleto": {
+    "label": "Beeker's Garage",
+    "job": "",
+    "coords": {
+      "x": 110.8,
+      "y": 6626.4,
+      "z": 31.8
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": false,
+    "multiplier": 1,
+    "stash": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  }
+}

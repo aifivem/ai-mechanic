@@ -1,0 +1,156 @@
+import type { PanelSchema } from "@aicore-fivem/shared";
+
+const int = (min: number, max: number) => ({ type: "number", min, max, integer: true }) as const;
+
+/** ai-mechanic's panel: shops (repair, tuning, job stash), car washes and every price. */
+export const mechanicSchema: PanelSchema = {
+  title: "ADMIN_TITLE",
+  icon: "wrench",
+  files: {
+    settings: {
+      kind: "settings",
+      sync: "all",
+      sections: {
+        accounts: { type: "names", max: 5, itemMax: 32, pattern: "^[a-z0-9_]{2,32}$" },
+        repairPoint: { type: "number", min: 0, max: 100 },
+        performance: int(0, 1_000_000),
+        turbo: int(0, 1_000_000),
+        xenon: int(0, 1_000_000),
+        cosmetic: int(0, 1_000_000),
+        wheels: int(0, 1_000_000),
+        paint: int(0, 1_000_000),
+        tint: int(0, 1_000_000),
+        plate: int(0, 1_000_000),
+        washPrice: int(0, 100_000),
+        washSeconds: int(1, 60),
+        kitEngine: int(100, 1000),
+        kitSeconds: int(1, 60),
+      },
+    },
+    shops: {
+      kind: "records",
+      sync: "all",
+      labelPath: "label",
+      newRecord: { label: "", job: "", coords: { x: 0, y: 0, z: 0 }, radius: 8, blip: true, repair: true, tuning: true, multiplier: 1, stash: { x: 0, y: 0, z: 0 } },
+      sections: {
+        label: { type: "text", min: 1, max: 48 },
+        job: { type: "text", min: 0, max: 32 },
+        coords: { type: "vec3" },
+        radius: { type: "number", min: 2, max: 40 },
+        blip: { type: "bool" },
+        repair: { type: "bool" },
+        tuning: { type: "bool" },
+        multiplier: { type: "number", min: 0, max: 10 },
+        stash: { type: "vec3" },
+      },
+    },
+    washes: {
+      kind: "records",
+      sync: "all",
+      labelPath: "label",
+      newRecord: { label: "", coords: { x: 0, y: 0, z: 0 } },
+      sections: { label: { type: "text", min: 1, max: 48 }, coords: { type: "vec3" } },
+    },
+  },
+  tabs: [
+    {
+      id: "shops",
+      file: "shops",
+      icon: "wrench",
+      label: "ADMIN_TAB_SHOPS",
+      desc: "ADMIN_TAB_SHOPS_DESC",
+      listSub: "job",
+      createLabel: "ADMIN_NEW_SHOP",
+      deleteLabel: "ADMIN_DELETE_SHOP",
+      cards: [
+        {
+          icon: "wrench",
+          title: "ADMIN_C_SHOP",
+          desc: "ADMIN_C_SHOP_DESC",
+          fields: [
+            { widget: "text", path: "label", label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_LABEL" },
+            { widget: "point", path: "coords", label: "ADMIN_F_COORDS", hint: "ADMIN_H_COORDS", ground: true },
+            { widget: "number", path: "radius", label: "ADMIN_F_RADIUS", hint: "ADMIN_H_RADIUS", min: 2, max: 40, unit: "m" },
+            { widget: "switch", path: "blip", label: "ADMIN_F_BLIP" },
+            { widget: "switch", path: "repair", label: "ADMIN_F_REPAIR", hint: "ADMIN_H_REPAIR" },
+            { widget: "switch", path: "tuning", label: "ADMIN_F_TUNING", hint: "ADMIN_H_TUNING" },
+            { widget: "number", path: "multiplier", label: "ADMIN_F_MULTIPLIER", hint: "ADMIN_H_MULTIPLIER", min: 0, max: 10, step: 0.05, unit: "x" },
+          ],
+        },
+        {
+          icon: "briefcase",
+          title: "ADMIN_C_JOB",
+          desc: "ADMIN_C_JOB_DESC",
+          fields: [
+            { widget: "text", path: "job", label: "ADMIN_F_JOB", hint: "ADMIN_H_JOB", placeholder: "ADMIN_P_JOB" },
+            { widget: "point", path: "stash", label: "ADMIN_F_STASH", hint: "ADMIN_H_STASH", ground: true },
+          ],
+        },
+      ],
+    },
+    {
+      id: "washes",
+      file: "washes",
+      icon: "droplet",
+      label: "ADMIN_TAB_WASHES",
+      desc: "ADMIN_TAB_WASHES_DESC",
+      createLabel: "ADMIN_NEW_WASH",
+      deleteLabel: "ADMIN_DELETE_WASH",
+      cards: [
+        {
+          icon: "droplet",
+          title: "ADMIN_C_WASH",
+          desc: "ADMIN_C_WASH_DESC",
+          fields: [
+            { widget: "text", path: "label", label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_WASH_LABEL" },
+            { widget: "point", path: "coords", label: "ADMIN_F_COORDS", hint: "ADMIN_H_WASH_COORDS", ground: true },
+          ],
+        },
+      ],
+    },
+    {
+      id: "settings",
+      file: "settings",
+      icon: "sliders",
+      label: "ADMIN_TAB_SETTINGS",
+      desc: "ADMIN_TAB_SETTINGS_DESC",
+      cards: [
+        {
+          icon: "money-bill-wave",
+          title: "ADMIN_C_PRICES",
+          desc: "ADMIN_C_PRICES_DESC",
+          fields: [
+            { widget: "tags", path: "accounts", label: "ADMIN_F_ACCOUNTS", hint: "ADMIN_H_ACCOUNTS", placeholder: "ADMIN_P_ACCOUNTS" },
+            { widget: "number", path: "repairPoint", label: "ADMIN_F_REPAIR_POINT", hint: "ADMIN_H_REPAIR_POINT", min: 0, max: 100, step: 0.1, unit: "$" },
+            { widget: "number", path: "performance", label: "ADMIN_F_PERFORMANCE", hint: "ADMIN_H_PERFORMANCE", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "turbo", label: "ADMIN_F_TURBO", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "xenon", label: "ADMIN_F_XENON", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "cosmetic", label: "ADMIN_F_COSMETIC", hint: "ADMIN_H_COSMETIC", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "wheels", label: "ADMIN_F_WHEELS", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "paint", label: "ADMIN_F_PAINT", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "tint", label: "ADMIN_F_TINT", min: 0, max: 1_000_000, unit: "$" },
+            { widget: "number", path: "plate", label: "ADMIN_F_PLATE", min: 0, max: 1_000_000, unit: "$" },
+          ],
+        },
+        {
+          icon: "droplet",
+          title: "ADMIN_C_WASHING",
+          desc: "ADMIN_C_WASHING_DESC",
+          fields: [
+            { widget: "number", path: "washPrice", label: "ADMIN_F_WASH_PRICE", min: 0, max: 100_000, unit: "$" },
+            { widget: "number", path: "washSeconds", label: "ADMIN_F_WASH_SECONDS", min: 1, max: 60, unit: "s" },
+          ],
+        },
+        {
+          icon: "toolbox",
+          title: "ADMIN_C_KIT",
+          desc: "ADMIN_C_KIT_DESC",
+          fields: [
+            { widget: "number", path: "kitEngine", label: "ADMIN_F_KIT_ENGINE", hint: "ADMIN_H_KIT_ENGINE", min: 100, max: 1000 },
+            { widget: "number", path: "kitSeconds", label: "ADMIN_F_KIT_SECONDS", min: 1, max: 60, unit: "s" },
+          ],
+        },
+      ],
+    },
+  ],
+};

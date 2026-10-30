@@ -2,11 +2,12 @@ import {
   bool,
   int,
   num,
+  type PlacePed,
+  readBlipStyle,
+  readPlacePed,
   record,
   str,
   type VehicleProps,
-  readPlacePed,
-  type PlacePed,
 } from "@aicore-fivem/lib/shared";
 
 /** ai-mechanic's contracts, panel content and the tuning change rules (both sides). No natives. */
@@ -69,11 +70,7 @@ export interface BlipStyle {
 
 function readBlip(raw: unknown, fallback: BlipStyle): BlipStyle {
   const v = record(raw);
-  return {
-    sprite: int(v.sprite, fallback.sprite, 0, 1000),
-    color: int(v.color, fallback.color, 0, 100),
-    scale: num(v.scale, fallback.scale, 0.3, 2),
-  };
+  return readBlipStyle(v, { sprite: fallback.sprite, color: fallback.color, scale: fallback.scale });
 }
 
 export function readSettings(raw: unknown): Settings {

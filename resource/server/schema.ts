@@ -1,14 +1,15 @@
-import { PLACE_PED_SPEC, placePedFields, spec } from "@aicore-fivem/lib/shared";
+import {
+  BLIP_STYLE_FIELDS,
+  PLACE_PED_SPEC,
+  placePedFields,
+  spec,
+} from "@aicore-fivem/lib/shared";
 import type { PanelSchema } from "@aicore-fivem/shared";
 
 const blip = {
   type: "object",
   optional: true,
-  fields: {
-    sprite: spec.int(0, 1000),
-    color: spec.int(0, 100),
-    scale: { type: "number", min: 0.3, max: 2 },
-  },
+  fields: BLIP_STYLE_FIELDS,
 } as const;
 
 /** ai-mechanic's panel: shops (repair, tuning, job stash), car washes and every price. */

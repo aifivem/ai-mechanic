@@ -11,7 +11,7 @@ export const mechanicSchema: PanelSchema = {
       kind: "settings",
       sync: "all",
       sections: {
-        accounts: { type: "names", max: 5, itemMax: 32, pattern: "^[a-z0-9_]{2,32}$" },
+        accounts: { type: "names", lookup: "account", max: 5, itemMax: 32, pattern: "^[a-z0-9_]{2,32}$" },
         repairPoint: { type: "number", min: 0, max: 100 },
         performance: int(0, 1_000_000),
         turbo: int(0, 1_000_000),
@@ -34,7 +34,7 @@ export const mechanicSchema: PanelSchema = {
       newRecord: { label: "", job: "", coords: { x: 0, y: 0, z: 0 }, radius: 8, blip: true, repair: true, tuning: true, multiplier: 1, stash: { x: 0, y: 0, z: 0 } },
       sections: {
         label: { type: "text", min: 1, max: 48 },
-        job: { type: "text", min: 0, max: 32 },
+        job: { type: "text", lookup: "job", min: 0, max: 32 },
         coords: { type: "vec3" },
         radius: { type: "number", min: 2, max: 40 },
         blip: { type: "bool" },
@@ -69,7 +69,7 @@ export const mechanicSchema: PanelSchema = {
           title: "ADMIN_C_SHOP",
           desc: "ADMIN_C_SHOP_DESC",
           fields: [
-            { widget: "text", path: "label", label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_LABEL" },
+            { widget: "text", path: "label", suggest: { from: "coords" }, label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_LABEL" },
             { widget: "point", path: "coords", label: "ADMIN_F_COORDS", hint: "ADMIN_H_COORDS", ground: true },
             { widget: "number", path: "radius", label: "ADMIN_F_RADIUS", hint: "ADMIN_H_RADIUS", min: 2, max: 40, unit: "m" },
             { widget: "switch", path: "blip", label: "ADMIN_F_BLIP" },
@@ -83,7 +83,7 @@ export const mechanicSchema: PanelSchema = {
           title: "ADMIN_C_JOB",
           desc: "ADMIN_C_JOB_DESC",
           fields: [
-            { widget: "text", path: "job", label: "ADMIN_F_JOB", hint: "ADMIN_H_JOB", placeholder: "ADMIN_P_JOB" },
+            { widget: "text", lookup: "job", path: "job", label: "ADMIN_F_JOB", hint: "ADMIN_H_JOB", placeholder: "ADMIN_P_JOB" },
             { widget: "point", path: "stash", label: "ADMIN_F_STASH", hint: "ADMIN_H_STASH", ground: true },
           ],
         },
@@ -103,7 +103,7 @@ export const mechanicSchema: PanelSchema = {
           title: "ADMIN_C_WASH",
           desc: "ADMIN_C_WASH_DESC",
           fields: [
-            { widget: "text", path: "label", label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_WASH_LABEL" },
+            { widget: "text", path: "label", suggest: { from: "coords" }, label: "ADMIN_F_LABEL", placeholder: "ADMIN_P_WASH_LABEL" },
             { widget: "point", path: "coords", label: "ADMIN_F_COORDS", hint: "ADMIN_H_WASH_COORDS", ground: true },
           ],
         },
@@ -121,7 +121,7 @@ export const mechanicSchema: PanelSchema = {
           title: "ADMIN_C_PRICES",
           desc: "ADMIN_C_PRICES_DESC",
           fields: [
-            { widget: "tags", path: "accounts", label: "ADMIN_F_ACCOUNTS", hint: "ADMIN_H_ACCOUNTS", placeholder: "ADMIN_P_ACCOUNTS" },
+            { widget: "tags", lookup: "account", path: "accounts", label: "ADMIN_F_ACCOUNTS", hint: "ADMIN_H_ACCOUNTS", placeholder: "ADMIN_P_ACCOUNTS" },
             { widget: "number", path: "repairPoint", label: "ADMIN_F_REPAIR_POINT", hint: "ADMIN_H_REPAIR_POINT", min: 0, max: 100, step: 0.1, unit: "$" },
             { widget: "number", path: "performance", label: "ADMIN_F_PERFORMANCE", hint: "ADMIN_H_PERFORMANCE", min: 0, max: 1_000_000, unit: "$" },
             { widget: "number", path: "turbo", label: "ADMIN_F_TURBO", min: 0, max: 1_000_000, unit: "$" },

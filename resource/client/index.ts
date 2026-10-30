@@ -1,4 +1,4 @@
-import { AdminWorld, cache, hidePrompt, notify, onPromptPressed, onServerEvent, progress, showPrompt, triggerServerCallback, Zones } from "@aicore-fivem/lib/client";
+import { AdminWorld, cache, notify, onServerEvent, Points, progress, triggerServerCallback } from "@aicore-fivem/lib/client";
 import { record } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS, readSettings, readShops, readWashes, type Shop } from "common/mechanic";
@@ -6,58 +6,51 @@ import { Customs, errorText } from "./customs";
 
 const world = new AdminWorld(["settings", "shops", "washes"]);
 const content = { settings: readSettings(world.get("settings")), shops: readShops(world.get("shops")), washes: readWashes(world.get("washes")) };
-const BLIP_TEXT = "AIMECH_BLIP";
-AddTextEntry(BLIP_TEXT, "~a~");
 
 const driving = (): number | null => (cache.vehicle !== false && GetPedInVehicleSeat(cache.vehicle, -1) === cache.ped ? cache.vehicle : null);
 
-/** Shop, stash and car wash zones with their prompts and blips, built again when the panel changes them. */
-class Places {
-  private readonly zones = new Zones();
-  private blips: number[] = [];
-  busy = false;
-
-  rebuild(): void {
-    this.zones.clear();
-    for (const blip of this.blips) RemoveBlip(blip);
-    this.blips = [];
-    for (const shop of content.shops.values()) {
-      this.add(`shop:${shop.id}`, shop.coords, shop.radius, () => Locale("MECH_PROMPT_SHOP", shop.label));
-      if (shop.job && shop.stash) this.add(`stash:${shop.id}`, shop.stash, 1.5, () => Locale("MECH_PROMPT_STASH"));
-      if (shop.blip) this.blip(shop.coords, shop.job ? 446 : 72, shop.label);
-    }
-    for (const wash of content.washes) {
-      this.add(`wash:${wash.id}`, wash.coords, 7.5, () => Locale("MECH_PROMPT_WASH", content.settings.washPrice));
-      this.blip(wash.coords, 100, wash.label);
-    }
+/** Shop, stash and car wash points with their blips, built again when the panel changes them. */
+const points = new Points();
+function rebuild(): void {
+  points.clear();
+  for (const shop of content.shops.values()) {
+    points.add(`shop:${shop.id}`, {
+      coords: shop.coords,
+      label: Locale("MECH_PROMPT_SHOP", shop.label),
+      icon: "screwdriver-wrench",
+      radius: shop.radius,
+      targetRadius: 2,
+      interval: 400,
+      blip: shop.blip ? { sprite: shop.job ? 446 : 72, color: 0, scale: 0.7, label: shop.label } : undefined,
+      onPressed: () => openShop(shop),
+    });
+    if (shop.job && shop.stash) points.add(`stash:${shop.id}`, { coords: shop.stash, label: Locale("MECH_PROMPT_STASH"), icon: "box-open", radius: 1.5, interval: 400, onPressed: () => openStash(shop.id) });
   }
-
-  private add(id: string, center: { x: number; y: number; z: number }, radius: number, label: () => string): void {
-    this.zones.add(id, { shape: { type: "sphere", center, radius }, interval: 400, onEnter: () => showPrompt(id, label()), onExit: () => hidePrompt(id) });
-  }
-
-  private blip(at: { x: number; y: number; z: number }, sprite: number, label: string): void {
-    const blip = AddBlipForCoord(at.x, at.y, at.z);
-    SetBlipSprite(blip, sprite);
-    SetBlipScale(blip, 0.7);
-    SetBlipAsShortRange(blip, true);
-    BeginTextCommandSetBlipName(BLIP_TEXT);
-    AddTextComponentSubstringPlayerName(label);
-    EndTextCommandSetBlipName(blip);
-    this.blips.push(blip);
-  }
+  for (const at of content.washes)
+    points.add(`wash:${at.id}`, {
+      coords: at.coords,
+      label: Locale("MECH_PROMPT_WASH", content.settings.washPrice),
+      icon: "droplet",
+      radius: 7.5,
+      promptOnly: true,
+      interval: 400,
+      blip: { sprite: 100, color: 0, scale: 0.7, label: at.label },
+      onPressed: () => wash(),
+    });
 }
 
-const places = new Places();
-places.rebuild();
-world.onChange("settings", () => (content.settings = readSettings(world.get("settings"))));
+rebuild();
+world.onChange("settings", () => {
+  content.settings = readSettings(world.get("settings"));
+  rebuild();
+});
 world.onChange("shops", () => {
   content.shops = readShops(world.get("shops"));
-  places.rebuild();
+  rebuild();
 });
 world.onChange("washes", () => {
   content.washes = readWashes(world.get("washes"));
-  places.rebuild();
+  rebuild();
 });
 
 async function openShop(shop: Shop): Promise<void> {
@@ -78,16 +71,6 @@ async function openStash(shopId: string): Promise<void> {
   const result = record(await triggerServerCallback(EVENTS.stash, [shopId]).catch(() => null));
   if (result.ok !== true) notify(errorText(result, "MECH_ERR_FAR"), "error");
 }
-
-onPromptPressed((id) => {
-  if (places.busy) return;
-  const [kind, key = ""] = id.split(":");
-  const shop = content.shops.get(key);
-  const run = kind === "shop" && shop ? openShop(shop) : kind === "stash" ? openStash(key) : kind === "wash" ? wash() : null;
-  if (!run) return;
-  places.busy = true;
-  void run.finally(() => (places.busy = false));
-});
 
 /** The vehicle's owner applies what only it can change: health, deformation, dirt. */
 onServerEvent(

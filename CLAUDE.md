@@ -21,4 +21,4 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 
 ## Entry points
 
-- Purchases, repairs, car washes `resource/server/index.ts`; repair kit and stashes `resource/server/service.ts`; customs menus `resource/client/customs.ts`; zones and owner fixes `resource/client/index.ts`.
+- Purchases, repairs, car washes `resource/server/index.ts`; repair kit and stashes `resource/server/service.ts`; customs menus `resource/client/customs.ts`; shop, stash and wash points (lib `Points`) and owner fixes `resource/client/index.ts`.

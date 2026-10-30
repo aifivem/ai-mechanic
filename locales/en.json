@@ -125,7 +125,7 @@
   "ADMIN_TAB_SHOPS": "Shops",
   "ADMIN_TAB_SHOPS_DESC": "Places where drivers repair and tune their vehicles, open to everyone or run by a job.",
   "ADMIN_NEW_SHOP": "New shop",
-  "ADMIN_DELETE_SHOP": "Delete this shop? Its stash stays in the inventory database.",
+  "ADMIN_DELETE_SHOP": "Delete shop",
   "ADMIN_C_SHOP": "Shop",
   "ADMIN_C_SHOP_DESC": "Where the shop is and what it offers. Drivers open it from the driver seat inside the area.",
   "ADMIN_F_LABEL": "Name",
@@ -151,7 +151,7 @@
   "ADMIN_TAB_WASHES": "Car washes",
   "ADMIN_TAB_WASHES_DESC": "Places where a driver pays to wash the vehicle.",
   "ADMIN_NEW_WASH": "New car wash",
-  "ADMIN_DELETE_WASH": "Delete this car wash?",
+  "ADMIN_DELETE_WASH": "Delete car wash",
   "ADMIN_C_WASH": "Car wash",
   "ADMIN_C_WASH_DESC": "Drive in and press the prompt.",
   "ADMIN_P_WASH_LABEL": "Strawberry Car Wash",
@@ -183,5 +183,6 @@
   "ADMIN_C_KIT_DESC": "The repair kit item, used on foot next to a vehicle.",
   "ADMIN_F_KIT_ENGINE": "Engine health after",
   "ADMIN_H_KIT_ENGINE": "1000 is a new engine; below 300 it smokes, at 0 it stops.",
-  "ADMIN_F_KIT_SECONDS": "Duration"
+  "ADMIN_F_KIT_SECONDS": "Duration",
+  "ADMIN_DELETE_SHOP_DESC": "Its stash stays in the inventory database."
 }

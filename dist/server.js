@@ -24996,6 +24996,7 @@ const mechanicSchema = {
 			listSub: "job",
 			createLabel: "ADMIN_NEW_SHOP",
 			deleteLabel: "ADMIN_DELETE_SHOP",
+			deleteDesc: "ADMIN_DELETE_SHOP_DESC",
 			cards: [{
 				icon: "wrench",
 				title: "ADMIN_C_SHOP",

@@ -1,15 +1,13 @@
-import { aiLog, notify, onClientCallback, optionalExport } from "@aicore-fivem/lib/server";
+import { aiLog, inventory, notify, onClientCallback, optionalExport } from "@aicore-fivem/lib/server";
 import { asArgs } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/mechanic";
 import { canUse, content, distance, fail, ownedId, panel, pos } from "./content";
 
-/** Job shops' stashes in ai-inventory (registered again when shops change or the inventory starts). */
+/** Job shops' stashes (registered again when shops change; ai-core hands them to an inventory that starts later). */
 const stashName = (shopId: string) => `mechanic_${shopId}`;
 function registerStashes(): void {
-  const inventory = optionalExport("ai-inventory");
-  if (!inventory) return;
-  for (const shop of content.shops.values()) if (shop.job && shop.stash) inventory.RegisterStash(stashName(shop.id), shop.label, 50, 250_000, [shop.job]);
+  for (const shop of content.shops.values()) if (shop.job && shop.stash) inventory.registerStash(stashName(shop.id), shop.label, 50, 250_000, [shop.job]);
 }
 
 onClientCallback(EVENTS.stash, { args: ([id]) => asArgs(typeof id === "string" ? id : null) }, (source, id) => {
@@ -17,14 +15,14 @@ onClientCallback(EVENTS.stash, { args: ([id]) => asArgs(typeof id === "string" ?
   if (!shop?.job || !shop.stash) return fail("MECH_ERR_FAR");
   if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
   if (distance(pos(source), shop.stash) > 3) return fail("MECH_ERR_FAR");
-  return optionalExport("ai-inventory")?.OpenInventory(source, stashName(shop.id)) ? { ok: true } : fail("MECH_ERR_FAR");
+  return inventory.openInventory(source, stashName(shop.id)) ? { ok: true } : fail("MECH_ERR_FAR");
 });
 
 /** Repair kits waiting for their progress bar: checked against the time they need. */
 const kits = new Map<number, { token: number; vehicle: number; startedAt: number; seconds: number }>();
 let nextToken = 0;
 
-/** The repair kit (ai-inventory): on foot next to a vehicle, brings its engine up to the panel's value. */
+/** The repair kit: on foot next to a vehicle, brings its engine up to the panel's value. */
 function useKit(source: number): boolean {
   const ped = GetPlayerPed(String(source));
   if (GetVehiclePedIsIn(ped, false)) {
@@ -58,7 +56,7 @@ onClientCallback(EVENTS.kitFinish, { args: ([token]) => asArgs(typeof token === 
   if (Date.now() - kit.startedAt < kit.seconds * 800 || !DoesEntityExist(kit.vehicle)) return fail("MECH_ERR_FAR");
   const [x = 0, y = 0, z = 0] = GetEntityCoords(kit.vehicle);
   if (distance(pos(source), { x, y, z }) > 5) return fail("MECH_ERR_FAR");
-  if (!optionalExport("ai-inventory")?.RemoveItem(source, "repairkit", 1)) return fail("MECH_ERR_FAR");
+  if (!inventory.removeItem(source, "repairkit", 1)) return fail("MECH_ERR_FAR");
   const engine = content.settings.kitEngine;
   const owner = NetworkGetEntityOwner(kit.vehicle);
   if (owner > 0) emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(kit.vehicle), engine);
@@ -69,11 +67,7 @@ onClientCallback(EVENTS.kitFinish, { args: ([token]) => asArgs(typeof token === 
   return { ok: true };
 });
 
-function registerItems(): void {
-  optionalExport("ai-inventory")?.RegisterUsableItem("repairkit", (source: number) => useKit(source));
-  registerStashes();
-}
-registerItems();
+inventory.registerUsableItem("repairkit", (source: number) => useKit(source));
+registerStashes();
 panel.onChange("shops", registerStashes);
-on("onServerResourceStart", (resource: string) => resource === "ai-inventory" && registerItems());
 on("playerDropped", () => kits.delete(Number(globalThis.source)));

@@ -1,10 +1,4 @@
-import {
-  aiLog,
-  aiLogChannels,
-  notify,
-  onClientCallback,
-  optionalExport,
-} from "@aicore-fivem/lib/server";
+import { aiLog, aiLogChannels, EntityState, notify, onClientCallback, optionalExport } from "@aicore-fivem/lib/server";
 import { asArgs, toVehicleProps } from "@aicore-fivem/lib/shared";
 import { VEHICLE_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
@@ -27,6 +21,8 @@ import {
   shopAt,
 } from "./content";
 import "./service";
+
+const propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? undefined);
 
 aiLogChannels({ tuning: { active: false }, repairs: { active: false } });
 
@@ -53,7 +49,7 @@ onClientCallback(
     const vehicle = drivenVehicle(source, netId);
     if (vehicle === null) return fail("MECH_ERR_DRIVER");
     const current =
-      toVehicleProps(Entity(vehicle).state[VEHICLE_BAGS.props]) ??
+      propsState.get(vehicle) ??
       toVehicleProps(base);
     if (!current || current.model !== GetEntityModel(vehicle))
       return fail("MECH_ERR_DRIVER");
@@ -69,7 +65,7 @@ onClientCallback(
       bodyHealth: GetVehicleBodyHealth(vehicle),
       dirt: GetVehicleDirtLevel(vehicle),
     };
-    Entity(vehicle).state.set(VEHICLE_BAGS.props, next, true);
+    propsState.set(vehicle, next);
     const id = ownedId(vehicle);
     if (id !== null)
       optionalExport("ai-vehicles")?.SaveVehicle(id, { props: next });
@@ -108,13 +104,8 @@ onClientCallback(
     if (!pay(source, shop, price, `repair:${shop.id}`))
       return fail("MECH_ERR_MONEY");
     fixOn(vehicle, null);
-    const bag = toVehicleProps(Entity(vehicle).state[VEHICLE_BAGS.props]);
-    if (bag)
-      Entity(vehicle).state.set(
-        VEHICLE_BAGS.props,
-        { ...bag, engineHealth: 1000, bodyHealth: 1000 },
-        true,
-      );
+    const bag = propsState.get(vehicle);
+    if (bag) propsState.set(vehicle, { ...bag, engineHealth: 1000, bodyHealth: 1000 });
     const id = ownedId(vehicle);
     if (id !== null)
       optionalExport("ai-vehicles")?.SaveVehicle(id, {

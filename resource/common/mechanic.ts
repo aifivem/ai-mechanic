@@ -22,7 +22,7 @@ export const EVENTS = {
   wash: "ai-mechanic:wash",
   /** Callback: (token) -> { ok } the repair kit's progress ran out. */
   kitFinish: "ai-mechanic:kitFinish",
-  /** Server -> player: (token, seconds) run the repair kit's progress. */
+  /** Server -> player: (token, seconds, netId) run the repair kit's progress. */
   kitStart: "ai-mechanic:client:kitStart",
   /** Server -> entity owner: (netId, engine | null) fix the body (engine null) or set the engine health; (netId, -1) wash. */
   fix: "ai-mechanic:client:fix",
@@ -50,6 +50,30 @@ export interface Settings {
   washSeconds: number;
   kitEngine: number;
   kitSeconds: number;
+  /** The usable repair kit item. */
+  kitItem: string;
+  /** Job shops' stash size. */
+  stashSlots: number;
+  stashWeight: number;
+  /** Map blips: public shops, job shops, car washes. */
+  shopBlip: BlipStyle;
+  jobShopBlip: BlipStyle;
+  washBlip: BlipStyle;
+}
+
+export interface BlipStyle {
+  sprite: number;
+  color: number;
+  scale: number;
+}
+
+function readBlip(raw: unknown, fallback: BlipStyle): BlipStyle {
+  const v = record(raw);
+  return {
+    sprite: int(v.sprite, fallback.sprite, 0, 1000),
+    color: int(v.color, fallback.color, 0, 100),
+    scale: num(v.scale, fallback.scale, 0.3, 2),
+  };
 }
 
 export function readSettings(raw: unknown): Settings {
@@ -72,6 +96,12 @@ export function readSettings(raw: unknown): Settings {
     washSeconds: int(v.washSeconds, 6, 1, 60),
     kitEngine: int(v.kitEngine, 750, 100, 1000),
     kitSeconds: int(v.kitSeconds, 10, 1, 60),
+    kitItem: str(v.kitItem, "repairkit", 48),
+    stashSlots: int(v.stashSlots, 50, 1, 200),
+    stashWeight: int(v.stashWeight, 250_000, 1000, 10_000_000),
+    shopBlip: readBlip(v.shopBlip, { sprite: 72, color: 0, scale: 0.7 }),
+    jobShopBlip: readBlip(v.jobShopBlip, { sprite: 446, color: 0, scale: 0.7 }),
+    washBlip: readBlip(v.washBlip, { sprite: 100, color: 0, scale: 0.7 }),
   };
 }
 
@@ -92,26 +122,22 @@ export interface Shop {
   stash: Point | null;
 }
 
-export function readShops(raw: unknown): Map<string, Shop> {
-  const out = new Map<string, Shop>();
-  for (const [id, value] of Object.entries(record(raw))) {
-    const v = record(value);
-    const stash = point(v.stash);
-    out.set(id, {
-      ped: readPlacePed(v.ped),
-      id,
-      label: str(v.label, id, 48),
-      job: str(v.job, "", 32),
-      coords: point(v.coords),
-      radius: num(v.radius, 8),
-      blip: bool(v.blip, true),
-      repair: bool(v.repair, true),
-      tuning: bool(v.tuning, true),
-      multiplier: num(v.multiplier, 1),
-      stash: stash.x === 0 && stash.y === 0 ? null : stash,
-    });
-  }
-  return out;
+/** One shop record (`panel.records` / `world.records`). */
+export function readShop(id: string, v: Record<string, unknown>): Shop {
+  const stash = point(v.stash);
+  return {
+    ped: readPlacePed(v.ped),
+    id,
+    label: str(v.label, id, 48),
+    job: str(v.job, "", 32),
+    coords: point(v.coords),
+    radius: num(v.radius, 8),
+    blip: bool(v.blip, true),
+    repair: bool(v.repair, true),
+    tuning: bool(v.tuning, true),
+    multiplier: num(v.multiplier, 1),
+    stash: stash.x === 0 && stash.y === 0 ? null : stash,
+  };
 }
 
 export interface Wash {
@@ -120,11 +146,9 @@ export interface Wash {
   coords: Point;
 }
 
-export function readWashes(raw: unknown): Wash[] {
-  return Object.entries(record(raw)).map(([id, value]) => {
-    const v = record(value);
-    return { id, label: str(v.label, id, 48), coords: point(v.coords) };
-  });
+/** One car wash record (`panel.records` / `world.records`). */
+export function readWash(id: string, v: Record<string, unknown>): Wash {
+  return { id, label: str(v.label, id, 48), coords: point(v.coords) };
 }
 
 /** Mod slots by price group; turbo (18) and xenon (22) are on / off. */

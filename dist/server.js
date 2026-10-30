@@ -46,8 +46,23 @@ function str(value, fallback, max = 64) {
 function record(value) {
 	return typeof value == "object" && value && !Array.isArray(value) ? value : {};
 }
-// ../../../packages/lib/src/shared/records.ts
-const isObject = (value) => typeof value == "object" && !!value && !Array.isArray(value);
+// ../../../packages/lib/src/shared/strict.ts
+function readInt(value, min, max) {
+	return Number.isInteger(value) && value >= min && value <= max ? value : null;
+}
+const readId = (value) => readInt(value, 1, 2147483647);
+function readText(value, max) {
+	if (typeof value != "string") return null;
+	let text = value.trim();
+	return text ? text.slice(0, max) : null;
+}
+const oneArg = (read) => ([value]) => {
+	let parsed = read(value);
+	return parsed === null ? null : [parsed];
+}, fail = (error) => ({
+	ok: !1,
+	error
+}), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), isObject = (value) => typeof value == "object" && !!value && !Array.isArray(value);
 function readRecords(raw, readOne) {
 	let out = new Map();
 	if (!isObject(raw)) return out;
@@ -267,7 +282,6 @@ function formatText(template, args) {
 		return value === void 0 ? match : String(value);
 	});
 }
-const asArgs = (value) => value === null ? null : [value];
 function createLogger(resource) {
 	let prefix = `[${resource}]`;
 	return {
@@ -342,7 +356,7 @@ const CORE = {
 	clientPlayerLoadedEvent: "ai-core:client:playerLoaded",
 	clientPlayerUnloadedEvent: "ai-core:client:playerUnloaded",
 	clientCharacterPortraitEvent: "ai-core:client:characterPortrait",
-	clientCharacterLookEvent: "ai-core:client:characterLook",
+	characterLooksEvent: "ai-core:client:characterLooks",
 	clientPromptPressedEvent: "ai-core:client:promptPressed",
 	clientCacheEvent: "ai-core:client:cache",
 	clientHudVisibleEvent: "ai-core:client:hudVisible",
@@ -409,6 +423,20 @@ function loadLocaleTexts(resource = GetCurrentResourceName()) {
 }
 // ../../../packages/lib/src/fivem/callbackNames.ts
 const requestEvent = (name) => `aicore:cb:${name}`, responseEvent = (resource) => `aicore:cbr:${resource}`;
+// ../../../packages/lib/src/server/position.ts
+function entityCoords(entity) {
+	let [x = 0, y = 0, z = 0] = GetEntityCoords(entity);
+	return {
+		x,
+		y,
+		z
+	};
+}
+const coordsOf = (source) => entityCoords(GetPlayerPed(String(source)));
+function isNear(source, point, metres) {
+	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source))), dx = x - point.x, dy = y - point.y, dz = z - point.z;
+	return dx * dx + dy * dy + dz * dz <= metres * metres;
+}
 resourceExport(CORE.resource);
 const log$5 = createLogger(GetCurrentResourceName()), gates = new Set();
 on("playerDropped", () => {
@@ -518,7 +546,7 @@ function toPatch(value) {
 		default: return null;
 	}
 }
-const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$14 = resourceExport(CORE.resource), ERR = {
+const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$15 = resourceExport(CORE.resource), ERR = {
 	type: "ADMIN_ERR_TYPE",
 	range: "ADMIN_ERR_RANGE",
 	length: "ADMIN_ERR_LENGTH",
@@ -532,7 +560,7 @@ const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(va
 		if (cached && Date.now() - cached.at < 2e3) return cached.values.size > 0 ? cached.values : null;
 		let list = [];
 		try {
-			list = core$14.GetLookupValues(source);
+			list = core$15.GetLookupValues(source);
 		} catch {}
 		let values = new Set(Array.isArray(list) ? list.filter((v) => typeof v == "string") : []);
 		return this.lists.set(source, {
@@ -735,7 +763,7 @@ function writeSchema(resource, name, text, log) {
 	(0, node_fs_promises.mkdir)(dir, { recursive: !0 }).then(() => (0, node_fs_promises.writeFile)(`${dir}/${name}.schema.json`, text, "utf8")).catch((error) => log.error(`writing ${resource}/${path} failed`, error));
 }
 // ../../../packages/lib/src/server/admin/panel.ts
-const core$13 = resourceExport(CORE.resource), DEFAULT_KEY = "^[a-z0-9_]{2,32}$";
+const core$14 = resourceExport(CORE.resource), DEFAULT_KEY = "^[a-z0-9_]{2,32}$";
 function imported(spec, value) {
 	let base = clone(spec.newRecord ?? {}), out = {};
 	for (let name of Object.keys(spec.sections)) {
@@ -759,7 +787,7 @@ var AdminPanel = class {
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges)), setImmediate(() => core$13.RegisterAdminPanel(this.resource));
+		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges)), setImmediate(() => core$14.RegisterAdminPanel(this.resource));
 	}
 	get(file) {
 		return this.data.get(file) ?? {};
@@ -893,7 +921,7 @@ var AdminPanel = class {
 		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
 		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
 		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
-		if (core$13.AdminPanelChanged({
+		if (core$14.AdminPanelChanged({
 			resource: this.resource,
 			file,
 			key,
@@ -931,19 +959,19 @@ function notify(source, text, kind = "info", duration) {
 	emitNet(CORE.clientNotifyEvent, source, notification);
 }
 // ../../../packages/lib/src/server/inventory.ts
-const core$12 = resourceExport(CORE.resource), inventory = {
-	addItem: (inv, item, count = 1, metadata, slot) => core$12.AddItem(inv, item, count, metadata, slot),
-	removeItem: (inv, item, count = 1, metadata, slot) => core$12.RemoveItem(inv, item, count, metadata, slot),
-	getItemCount: (inv, item, metadata) => core$12.GetItemCount(inv, item, metadata),
-	hasItem: (inv, item, count = 1) => core$12.HasItem(inv, item, count),
-	canCarryItem: (inv, item, count = 1, metadata) => core$12.CanCarryItem(inv, item, count, metadata),
-	getItems: (inv) => core$12.GetItems(inv),
-	clearInventory: (inv) => core$12.ClearInventory(inv),
-	registerStash: (name, label, slots, maxWeight, jobs = []) => core$12.RegisterStash(name, label, slots, maxWeight, jobs),
-	openInventory: (source, inv) => core$12.OpenInventory(source, inv),
-	registerUsableItem: (name, handler) => core$12.RegisterUsableItem(name, handler),
-	getItemDefinition: (name) => core$12.GetItemDefinition(name)
-}, core$11 = resourceExport(CORE.resource);
+const core$13 = resourceExport(CORE.resource), inventory = {
+	addItem: (inv, item, count = 1, metadata, slot) => core$13.AddItem(inv, item, count, metadata, slot),
+	removeItem: (inv, item, count = 1, metadata, slot) => core$13.RemoveItem(inv, item, count, metadata, slot),
+	getItemCount: (inv, item, metadata) => core$13.GetItemCount(inv, item, metadata),
+	hasItem: (inv, item, count = 1) => core$13.HasItem(inv, item, count),
+	canCarryItem: (inv, item, count = 1, metadata) => core$13.CanCarryItem(inv, item, count, metadata),
+	getItems: (inv) => core$13.GetItems(inv),
+	clearInventory: (inv) => core$13.ClearInventory(inv),
+	registerStash: (name, label, slots, maxWeight, jobs = []) => core$13.RegisterStash(name, label, slots, maxWeight, jobs),
+	openInventory: (source, inv) => core$13.OpenInventory(source, inv),
+	registerUsableItem: (name, handler) => core$13.RegisterUsableItem(name, handler),
+	getItemDefinition: (name) => core$13.GetItemDefinition(name)
+}, core$12 = resourceExport(CORE.resource);
 var OnlinePlayers = class {
 	players = new Map();
 	onDuty = new Map();
@@ -952,7 +980,7 @@ var OnlinePlayers = class {
 		if (this.started) return;
 		this.started = !0;
 		let load = (source, character) => {
-			this.put(source, character, (core$11.GetJobs(source) ?? []).map((m) => m.job), (core$11.GetGangs(source) ?? []).map((m) => m.gang)), this.setDuty(source, core$11.GetDutyJob(source));
+			this.put(source, character, (core$12.GetJobs(source) ?? []).map((m) => m.job), (core$12.GetGangs(source) ?? []).map((m) => m.gang)), this.setDuty(source, core$12.GetDutyJob(source));
 		};
 		on(CORE.playerLoadedEvent, load), on(CORE.playerUnloadedEvent, (source) => this.drop(source)), on(CORE.jobsChangedEvent, (source, jobs) => {
 			let player = this.players.get(source);
@@ -961,8 +989,8 @@ var OnlinePlayers = class {
 			let player = this.players.get(source);
 			player && (player.gangs = gangs.map((m) => m.gang));
 		}), on(CORE.dutyChangedEvent, (source, job) => this.setDuty(source, job));
-		for (let source of core$11.GetLoadedSources()) {
-			let character = core$11.GetCharacter(source);
+		for (let source of core$12.GetLoadedSources()) {
+			let character = core$12.GetCharacter(source);
 			character && load(source, character);
 		}
 	}
@@ -1005,8 +1033,98 @@ var OnlinePlayers = class {
 		return this.start(), this.onDuty.get(job) ?? EMPTY;
 	}
 };
-const EMPTY = new Set();
-new OnlinePlayers(), resourceExport(CORE.resource), resourceExport(CORE.resource), createLogger(GetCurrentResourceName());
+const EMPTY = new Set(), online = new OnlinePlayers();
+resourceExport(CORE.resource);
+// ../../../packages/lib/src/server/vehicle.ts
+function nearestVehicleTo(source, metres, filter) {
+	let ped = GetPlayerPed(String(source)), own = GetVehiclePedIsIn(ped, !1);
+	if (own && (!filter || filter(own))) return own;
+	let [x = 0, y = 0, z = 0] = GetEntityCoords(ped), best = 0, bestDistance = metres;
+	for (let vehicle of GetAllVehicles()) {
+		let [vx = 0, vy = 0, vz = 0] = GetEntityCoords(vehicle), d = Math.hypot(vx - x, vy - y, vz - z);
+		d < bestDistance && (!filter || filter(vehicle)) && ([best, bestDistance] = [vehicle, d]);
+	}
+	return best;
+}
+function vehicleFromNet(netId) {
+	if (readId(netId) === null) return 0;
+	let entity = NetworkGetEntityFromNetworkId(netId);
+	return entity && DoesEntityExist(entity) && GetEntityType(entity) === 2 ? entity : 0;
+}
+function vehicleNearPlayer(source, netId, options = {}) {
+	let vehicle = vehicleFromNet(netId);
+	if (!vehicle) return 0;
+	let ped = GetPlayerPed(String(source));
+	if (options.driver) return GetPedInVehicleSeat(vehicle, -1) === ped ? vehicle : 0;
+	let [px = 0, py = 0, pz = 0] = GetEntityCoords(ped), [vx = 0, vy = 0, vz = 0] = GetEntityCoords(vehicle);
+	return Math.hypot(vx - px, vy - py, vz - pz) <= (options.metres ?? 5) ? vehicle : 0;
+}
+resourceExport(CORE.resource), createLogger(GetCurrentResourceName());
+const dropped = new Set();
+let listening = !1;
+function onDropped(fn) {
+	listening || (listening = !0, on("playerDropped", () => {
+		let source = Number(globalThis.source);
+		for (let handler of dropped) handler(source);
+	})), dropped.add(fn);
+}
+var PlayerMap = class extends Map {
+	constructor(options = {}) {
+		super(), onDropped((source) => {
+			if (!this.has(source)) return;
+			let value = this.get(source);
+			this.delete(source), options.onDrop?.(source, value);
+		});
+	}
+}, Cooldowns = class {
+	until = new PlayerMap();
+	ready(source) {
+		return this.left(source) === 0;
+	}
+	start(source, ms) {
+		this.until.set(source, GetGameTimer() + ms);
+	}
+	take(source, ms) {
+		return this.ready(source) ? (this.start(source, ms), !0) : !1;
+	}
+	left(source) {
+		let until = this.until.get(source);
+		if (until === void 0) return 0;
+		let left = until - GetGameTimer();
+		return left > 0 ? left : (this.until.delete(source), 0);
+	}
+	clear(source) {
+		this.until.delete(source);
+	}
+}, PendingActions = class {
+	actions = new PlayerMap();
+	minRatio;
+	next = 0;
+	constructor(options = {}) {
+		this.minRatio = options.minRatio ?? .8;
+	}
+	start(source, data, durationMs) {
+		return this.next = this.next >= 2147483647 ? 1 : this.next + 1, this.actions.set(source, {
+			token: this.next,
+			data,
+			startedAt: GetGameTimer(),
+			durationMs
+		}), this.next;
+	}
+	take(source, token) {
+		let action = this.actions.get(source);
+		return !action || action.token !== token ? null : (this.actions.delete(source), GetGameTimer() - action.startedAt >= action.durationMs * this.minRatio ? action.data : null);
+	}
+	peek(source) {
+		return this.actions.get(source)?.data ?? null;
+	}
+	cancel(source) {
+		this.actions.delete(source);
+	}
+	get size() {
+		return this.actions.size;
+	}
+};
 // ../../../packages/lib/src/server/command.ts
 const resource = GetCurrentResourceName();
 createLogger(resource), new class {
@@ -1094,7 +1212,7 @@ var Mirror = class {
 		DoesEntityExist(entity) && (Entity(entity).state.set(this.key, value ?? null, !0), this.put(entity, value));
 	}
 };
-resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // resource/common/locale.ts
 const Locale = createLocale();
 GetCurrentResourceName(), IsDuplicityVersion();
@@ -1115,6 +1233,14 @@ const EVENTS = {
 		z: num(p.z, 0)
 	};
 };
+function readBlip(raw, fallback) {
+	let v = record(raw);
+	return {
+		sprite: int$1(v.sprite, fallback.sprite, 0, 1e3),
+		color: int$1(v.color, fallback.color, 0, 100),
+		scale: num(v.scale, fallback.scale, .3, 2)
+	};
+}
 function readSettings(raw) {
 	let v = record(raw), accounts = Array.isArray(v.accounts) ? v.accounts.filter((a) => typeof a == "string") : [];
 	return {
@@ -1131,38 +1257,49 @@ function readSettings(raw) {
 		washPrice: int$1(v.washPrice, 20, 0),
 		washSeconds: int$1(v.washSeconds, 6, 1, 60),
 		kitEngine: int$1(v.kitEngine, 750, 100, 1e3),
-		kitSeconds: int$1(v.kitSeconds, 10, 1, 60)
+		kitSeconds: int$1(v.kitSeconds, 10, 1, 60),
+		kitItem: str(v.kitItem, "repairkit", 48),
+		stashSlots: int$1(v.stashSlots, 50, 1, 200),
+		stashWeight: int$1(v.stashWeight, 25e4, 1e3, 1e7),
+		shopBlip: readBlip(v.shopBlip, {
+			sprite: 72,
+			color: 0,
+			scale: .7
+		}),
+		jobShopBlip: readBlip(v.jobShopBlip, {
+			sprite: 446,
+			color: 0,
+			scale: .7
+		}),
+		washBlip: readBlip(v.washBlip, {
+			sprite: 100,
+			color: 0,
+			scale: .7
+		})
 	};
 }
-function readShops(raw) {
-	let out = new Map();
-	for (let [id, value] of Object.entries(record(raw))) {
-		let v = record(value), stash = point(v.stash);
-		out.set(id, {
-			ped: readPlacePed(v.ped),
-			id,
-			label: str(v.label, id, 48),
-			job: str(v.job, "", 32),
-			coords: point(v.coords),
-			radius: num(v.radius, 8),
-			blip: bool(v.blip, !0),
-			repair: bool(v.repair, !0),
-			tuning: bool(v.tuning, !0),
-			multiplier: num(v.multiplier, 1),
-			stash: stash.x === 0 && stash.y === 0 ? null : stash
-		});
-	}
-	return out;
+function readShop(id, v) {
+	let stash = point(v.stash);
+	return {
+		ped: readPlacePed(v.ped),
+		id,
+		label: str(v.label, id, 48),
+		job: str(v.job, "", 32),
+		coords: point(v.coords),
+		radius: num(v.radius, 8),
+		blip: bool(v.blip, !0),
+		repair: bool(v.repair, !0),
+		tuning: bool(v.tuning, !0),
+		multiplier: num(v.multiplier, 1),
+		stash: stash.x === 0 && stash.y === 0 ? null : stash
+	};
 }
-function readWashes(raw) {
-	return Object.entries(record(raw)).map(([id, value]) => {
-		let v = record(value);
-		return {
-			id,
-			label: str(v.label, id, 48),
-			coords: point(v.coords)
-		};
-	});
+function readWash(id, v) {
+	return {
+		id,
+		label: str(v.label, id, 48),
+		coords: point(v.coords)
+	};
 }
 const PERFORMANCE_MODS = [
 	11,
@@ -1297,7 +1434,19 @@ const int = (min, max) => ({
 	min,
 	max,
 	integer: !0
-}), mechanicSchema = {
+}), blip = {
+	type: "object",
+	optional: !0,
+	fields: {
+		sprite: int(0, 1e3),
+		color: int(0, 100),
+		scale: {
+			type: "number",
+			min: .3,
+			max: 2
+		}
+	}
+}, mechanicSchema = {
 	title: "ADMIN_TITLE",
 	icon: "wrench",
 	files: {
@@ -1328,7 +1477,25 @@ const int = (min, max) => ({
 				washPrice: int(0, 1e5),
 				washSeconds: int(1, 60),
 				kitEngine: int(100, 1e3),
-				kitSeconds: int(1, 60)
+				kitSeconds: int(1, 60),
+				kitItem: {
+					type: "text",
+					lookup: "item",
+					min: 2,
+					max: 48,
+					optional: !0
+				},
+				stashSlots: {
+					...int(1, 200),
+					optional: !0
+				},
+				stashWeight: {
+					...int(1e3, 1e7),
+					optional: !0
+				},
+				shopBlip: blip,
+				jobShopBlip: blip,
+				washBlip: blip
 			}
 		},
 		shops: {
@@ -1651,119 +1818,152 @@ const int = (min, max) => ({
 					icon: "toolbox",
 					title: "ADMIN_C_KIT",
 					desc: "ADMIN_C_KIT_DESC",
+					fields: [
+						{
+							widget: "number",
+							path: "kitEngine",
+							label: "ADMIN_F_KIT_ENGINE",
+							hint: "ADMIN_H_KIT_ENGINE",
+							min: 100,
+							max: 1e3
+						},
+						{
+							widget: "number",
+							path: "kitSeconds",
+							label: "ADMIN_F_KIT_SECONDS",
+							min: 1,
+							max: 60,
+							unit: "s"
+						},
+						{
+							widget: "text",
+							lookup: "item",
+							path: "kitItem",
+							label: "ADMIN_F_KIT_ITEM",
+							hint: "ADMIN_H_KIT_ITEM",
+							placeholder: "ADMIN_P_KIT_ITEM"
+						}
+					]
+				},
+				{
+					icon: "box-open",
+					title: "ADMIN_C_STASH",
+					desc: "ADMIN_C_STASH_DESC",
 					fields: [{
 						widget: "number",
-						path: "kitEngine",
-						label: "ADMIN_F_KIT_ENGINE",
-						hint: "ADMIN_H_KIT_ENGINE",
-						min: 100,
-						max: 1e3
+						path: "stashSlots",
+						label: "ADMIN_F_STASH_SLOTS",
+						min: 1,
+						max: 200
 					}, {
 						widget: "number",
-						path: "kitSeconds",
-						label: "ADMIN_F_KIT_SECONDS",
-						min: 1,
-						max: 60,
-						unit: "s"
+						path: "stashWeight",
+						label: "ADMIN_F_STASH_WEIGHT",
+						min: 1e3,
+						max: 1e7,
+						unit: "g"
 					}]
+				},
+				{
+					icon: "map",
+					title: "ADMIN_C_BLIPS",
+					desc: "ADMIN_C_BLIPS_DESC",
+					fields: [
+						{
+							widget: "blip",
+							path: "shopBlip",
+							label: "ADMIN_F_SHOP_BLIP"
+						},
+						{
+							widget: "blip",
+							path: "jobShopBlip",
+							label: "ADMIN_F_JOB_SHOP_BLIP"
+						},
+						{
+							widget: "blip",
+							path: "washBlip",
+							label: "ADMIN_F_WASH_BLIP"
+						}
+					]
 				}
 			]
 		}
 	]
-}, core = resourceExport("ai-core"), panel = new AdminPanel(mechanicSchema), content = {
-	settings: readSettings(panel.get("settings")),
-	shops: readShops(panel.get("shops")),
-	washes: readWashes(panel.get("washes"))
+}, core = resourceExport("ai-core"), panel = new AdminPanel(mechanicSchema), settings = panel.view("settings", readSettings), content = {
+	get settings() {
+		return settings.value;
+	},
+	shops: panel.records("shops", readShop),
+	washes: panel.records("washes", readWash)
 };
-panel.onChange("settings", () => content.settings = readSettings(panel.get("settings"))), panel.onChange("shops", () => content.shops = readShops(panel.get("shops"))), panel.onChange("washes", () => content.washes = readWashes(panel.get("washes")));
-const fail = (error) => ({
-	ok: !1,
-	error
-});
-function pos(source) {
-	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source)));
-	return {
-		x,
-		y,
-		z
-	};
-}
-const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 function shopAt(source, feature) {
-	let p = pos(source);
+	let p = coordsOf(source);
 	for (let shop of content.shops.values()) if (shop[feature] && distance(p, shop.coords) <= shop.radius + 2) return shop;
 	return null;
 }
-const canUse = (source, shop) => !shop.job || core.GetDutyJob(source) === shop.job;
-function drivenVehicle(source, netId) {
-	let vehicle = NetworkGetEntityFromNetworkId(netId);
-	return !vehicle || !DoesEntityExist(vehicle) || GetEntityType(vehicle) !== 2 ? null : GetPedInVehicleSeat(vehicle, -1) === GetPlayerPed(String(source)) ? vehicle : null;
+const canUse = (source, shop) => !shop.job || online.dutyJob(source) === shop.job, ownedId = (vehicle) => optionalExport("ai-vehicles")?.GetVehicleIdByEntity(vehicle) ?? null;
+function ownsVehicle(source, vehicle) {
+	let id = ownedId(vehicle), owner = id === null ? null : optionalExport("ai-vehicles")?.GetVehicle(id)?.owner, charId = online.character(source)?.id;
+	return owner?.type === "character" && charId !== void 0 && owner.id === String(charId);
 }
-function pay(source, shop, amount, reason) {
-	return amount <= 0 ? !0 : shop?.job ? core.RemoveSharedMoney("job", shop.job, "bank", amount, reason) : content.settings.accounts.some((a) => core.RemoveMoney(source, a, amount, reason));
+function payerOf(source, shop, vehicle) {
+	return shop?.job && (vehicle === null || !ownsVehicle(source, vehicle)) ? "job" : "player";
 }
-const ownedId = (vehicle) => optionalExport("ai-vehicles")?.GetVehicleIdByEntity(vehicle) ?? null, stashName = (shopId) => `mechanic_${shopId}`;
+function pay(source, shop, payer, amount, reason) {
+	return amount <= 0 ? !0 : payer === "job" && shop?.job ? core.RemoveSharedMoney("job", shop.job, "bank", amount, reason) : content.settings.accounts.some((a) => core.RemoveMoney(source, a, amount, reason));
+}
+// resource/server/service.ts
+const stashName = (shopId) => `mechanic_${shopId}`;
 function registerStashes() {
-	for (let shop of content.shops.values()) shop.job && shop.stash && inventory.registerStash(stashName(shop.id), shop.label, 50, 25e4, [shop.job]);
+	let { stashSlots, stashWeight } = content.settings;
+	for (let shop of content.shops.values()) shop.job && shop.stash && inventory.registerStash(stashName(shop.id), shop.label, stashSlots, stashWeight, [shop.job]);
 }
-onClientCallback(EVENTS.stash, { args: ([id]) => asArgs(typeof id == "string" ? id : null) }, (source, id) => {
+onClientCallback(EVENTS.stash, { args: oneArg((v) => readText(v, 64)) }, (source, id) => {
 	let shop = content.shops.get(id);
-	return !shop?.job || !shop.stash ? fail("MECH_ERR_FAR") : canUse(source, shop) ? distance(pos(source), shop.stash) > 3 ? fail("MECH_ERR_FAR") : inventory.openInventory(source, stashName(shop.id)) ? { ok: !0 } : fail("MECH_ERR_FAR") : fail("MECH_ERR_JOB");
+	return !shop?.job || !shop.stash ? fail("MECH_ERR_FAR") : canUse(source, shop) ? isNear(source, shop.stash, 3) && inventory.openInventory(source, stashName(shop.id)) ? { ok: !0 } : fail("MECH_ERR_FAR") : fail("MECH_ERR_JOB");
 });
-const kits = new Map();
-let nextToken = 0;
+const kits = new PendingActions();
 function useKit(source) {
-	let ped = GetPlayerPed(String(source));
-	if (GetVehiclePedIsIn(ped, !1)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
-	let p = pos(source), vehicle = GetAllVehicles().find((v) => {
-		let [x = 0, y = 0, z = 0] = GetEntityCoords(v);
-		return distance(p, {
-			x,
-			y,
-			z
-		}) <= 4;
-	});
-	if (vehicle === void 0) return notify(source, Locale("MECH_KIT_NO_VEHICLE"), "warning"), !1;
+	if (GetVehiclePedIsIn(GetPlayerPed(String(source)), !1)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
+	let vehicle = nearestVehicleTo(source, 4);
+	if (!vehicle) return notify(source, Locale("MECH_KIT_NO_VEHICLE"), "warning"), !1;
 	if (GetVehicleEngineHealth(vehicle) >= content.settings.kitEngine) return notify(source, Locale("MECH_KIT_NOT_NEEDED"), "info"), !1;
-	let token = ++nextToken;
-	return kits.set(source, {
-		token,
-		vehicle,
-		startedAt: Date.now(),
-		seconds: content.settings.kitSeconds
-	}), emitNet(EVENTS.kitStart, source, token, content.settings.kitSeconds, NetworkGetNetworkIdFromEntity(vehicle)), !1;
+	let seconds = content.settings.kitSeconds;
+	return emitNet(EVENTS.kitStart, source, kits.start(source, vehicle, seconds * 1e3), seconds, NetworkGetNetworkIdFromEntity(vehicle)), !1;
 }
 onClientCallback(EVENTS.kitFinish, {
-	args: ([token]) => asArgs(typeof token == "number" ? token : null),
+	args: oneArg(readId),
 	lock: !0
 }, (source, token) => {
-	let kit = kits.get(source);
-	if (!kit || kit.token !== token || (kits.delete(source), Date.now() - kit.startedAt < kit.seconds * 800 || !DoesEntityExist(kit.vehicle))) return fail("MECH_ERR_FAR");
-	let [x = 0, y = 0, z = 0] = GetEntityCoords(kit.vehicle);
-	if (distance(pos(source), {
-		x,
-		y,
-		z
-	}) > 5 || !inventory.removeItem(source, "repairkit", 1)) return fail("MECH_ERR_FAR");
-	let engine = content.settings.kitEngine, owner = NetworkGetEntityOwner(kit.vehicle);
-	owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(kit.vehicle), engine);
-	let id = ownedId(kit.vehicle);
+	let vehicle = kits.take(source, token);
+	if (vehicle === null || !DoesEntityExist(vehicle) || !isNear(source, entityCoords(vehicle), 5) || !inventory.removeItem(source, content.settings.kitItem, 1)) return fail("MECH_ERR_FAR");
+	let engine = content.settings.kitEngine, owner = NetworkGetEntityOwner(vehicle);
+	owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), engine);
+	let id = ownedId(vehicle);
 	return id !== null && optionalExport("ai-vehicles")?.SaveVehicle(id, { engine }), notify(source, Locale("MECH_KIT_DONE"), "success"), aiLog("repairs", "repair kit", { source }), { ok: !0 };
-}), inventory.registerUsableItem("repairkit", (source) => useKit(source)), registerStashes(), panel.onChange("shops", registerStashes), on("playerDropped", () => kits.delete(Number(globalThis.source)));
+});
+const kitItems = new Set();
+function registerKit() {
+	let item = content.settings.kitItem;
+	kitItems.has(item) || (kitItems.add(item), inventory.registerUsableItem(item, (source) => item === content.settings.kitItem && useKit(source)));
+}
+registerKit(), registerStashes(), panel.onChange("shops", registerStashes), panel.onChange("settings", () => {
+	registerKit(), registerStashes();
+});
 // resource/server/index.ts
 const propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? void 0);
 aiLogChannels({
 	tuning: { active: !1 },
 	repairs: { active: !1 }
 });
-const netIdOk = (v) => typeof v == "number" && Number.isInteger(v) && v > 0;
+const driven = (source, netId) => vehicleNearPlayer(source, netId, { driver: !0 });
 onClientCallback(EVENTS.buy, {
 	args: ([netId, raw, base]) => {
-		let change = toChange(raw);
-		return netIdOk(netId) && change ? [
-			netId,
+		let id = readId(netId), change = toChange(raw), props = base == null ? null : toVehicleProps(base);
+		return id !== null && change && (base == null || props) ? [
+			id,
 			change,
-			base
+			props
 		] : null;
 	},
 	lock: !0
@@ -1771,12 +1971,12 @@ onClientCallback(EVENTS.buy, {
 	let shop = shopAt(source, "tuning");
 	if (!shop) return fail("MECH_ERR_FAR");
 	if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
-	let vehicle = drivenVehicle(source, netId);
-	if (vehicle === null) return fail("MECH_ERR_DRIVER");
-	let current = propsState.get(vehicle) ?? toVehicleProps(base);
+	let vehicle = driven(source, netId);
+	if (!vehicle) return fail("MECH_ERR_DRIVER");
+	let current = propsState.get(vehicle) ?? base;
 	if (!current || current.model !== GetEntityModel(vehicle)) return fail("MECH_ERR_DRIVER");
-	let price = Math.round(priceOf(change, content.settings) * shop.multiplier);
-	if (!pay(source, shop, price, `tuning:${shop.id}`)) return fail("MECH_ERR_MONEY");
+	let price = Math.round(priceOf(change, content.settings) * shop.multiplier), payer = payerOf(source, shop, vehicle);
+	if (!pay(source, shop, payer, price, `tuning:${shop.id}`)) return fail("MECH_ERR_MONEY");
 	let next = {
 		...applyChange(current, change),
 		plate: GetVehicleNumberPlateText(vehicle),
@@ -1791,6 +1991,8 @@ onClientCallback(EVENTS.buy, {
 		metadata: {
 			shop: shop.id,
 			price,
+			payer,
+			vehicle: id,
 			change
 		}
 	}), { ok: !0 };
@@ -1800,18 +2002,18 @@ function fixOn(vehicle, engine) {
 	owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), engine);
 }
 onClientCallback(EVENTS.repair, {
-	args: ([netId]) => asArgs(netIdOk(netId) ? netId : null),
+	args: oneArg(readId),
 	lock: !0
 }, (source, netId) => {
 	let shop = shopAt(source, "repair");
 	if (!shop) return fail("MECH_ERR_FAR");
 	if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
-	let vehicle = drivenVehicle(source, netId);
-	if (vehicle === null) return fail("MECH_ERR_DRIVER");
+	let vehicle = driven(source, netId);
+	if (!vehicle) return fail("MECH_ERR_DRIVER");
 	let damage = Math.max(0, 1e3 - GetVehicleEngineHealth(vehicle)) + Math.max(0, 1e3 - GetVehicleBodyHealth(vehicle));
 	if (damage < 1) return fail("MECH_ERR_NOT_DAMAGED");
-	let price = Math.round(damage * content.settings.repairPoint * shop.multiplier);
-	if (!pay(source, shop, price, `repair:${shop.id}`)) return fail("MECH_ERR_MONEY");
+	let price = Math.round(damage * content.settings.repairPoint * shop.multiplier), payer = payerOf(source, shop, vehicle);
+	if (!pay(source, shop, payer, price, `repair:${shop.id}`)) return fail("MECH_ERR_MONEY");
 	fixOn(vehicle, null);
 	let bag = propsState.get(vehicle);
 	bag && propsState.set(vehicle, {
@@ -1827,26 +2029,31 @@ onClientCallback(EVENTS.repair, {
 		source,
 		metadata: {
 			shop: shop.id,
-			price
+			price,
+			payer,
+			vehicle: id
 		}
 	}), { ok: !0 };
 });
-const washing = new Set();
+const washing = new Cooldowns();
 onClientCallback(EVENTS.wash, {
-	args: ([netId]) => asArgs(netIdOk(netId) ? netId : null),
+	args: oneArg(readId),
 	lock: !0
 }, (source, netId) => {
-	if (washing.has(source)) return fail("MECH_ERR_BUSY");
-	let p = pos(source);
-	if (!content.washes.some((w) => distance(p, w.coords) <= 10)) return fail("MECH_ERR_FAR");
-	let vehicle = drivenVehicle(source, netId);
-	return vehicle === null ? fail("MECH_ERR_DRIVER") : GetVehicleDirtLevel(vehicle) < .1 ? fail("MECH_ERR_CLEAN") : pay(source, null, content.settings.washPrice, "carwash") ? (washing.add(source), setTimeout(() => {
-		if (washing.delete(source), !DoesEntityExist(vehicle)) return;
+	if (!washing.ready(source)) return fail("MECH_ERR_BUSY");
+	let p = coordsOf(source);
+	if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10)) return fail("MECH_ERR_FAR");
+	let vehicle = driven(source, netId);
+	if (!vehicle) return fail("MECH_ERR_DRIVER");
+	if (GetVehicleDirtLevel(vehicle) < .1) return fail("MECH_ERR_CLEAN");
+	let { washPrice, washSeconds } = content.settings;
+	return pay(source, null, "player", washPrice, "carwash") ? (washing.start(source, washSeconds * 1e3), setTimeout(() => {
+		if (!DoesEntityExist(vehicle)) return;
 		SetVehicleDirtLevel(vehicle, 0);
 		let owner = NetworkGetEntityOwner(vehicle);
 		owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1);
-	}, content.settings.washSeconds * 1e3), {
+	}, washSeconds * 1e3), {
 		ok: !0,
-		seconds: content.settings.washSeconds
+		seconds: washSeconds
 	}) : fail("MECH_ERR_MONEY");
-}), on("playerDropped", () => washing.delete(Number(globalThis.source)));
+});

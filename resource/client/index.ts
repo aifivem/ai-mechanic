@@ -1,40 +1,43 @@
 import {
   AdminWorld,
   cache,
+  callAction,
+  getPlayerData,
   notify,
+  onPlayerData,
   onServerEvent,
   Points,
   progress,
-  triggerServerCallback,
 } from "@aicore-fivem/lib/client";
-import { record } from "@aicore-fivem/lib/shared";
+import { readFinite, readId } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import {
   EVENTS,
   readSettings,
-  readShops,
-  readWashes,
+  readShop,
+  readWash,
   type Shop,
 } from "common/mechanic";
-import { Customs, errorText } from "./customs";
+import { Customs, FALLBACK } from "./customs";
 
 const world = new AdminWorld(["settings", "shops", "washes"]);
+const settings = world.view("settings", readSettings);
 const content = {
-  settings: readSettings(world.get("settings")),
-  shops: readShops(world.get("shops")),
-  washes: readWashes(world.get("washes")),
+  shops: world.records("shops", readShop),
+  washes: world.records("washes", readWash),
 };
 
 const driving = (): number | null =>
-  cache.vehicle !== false &&
-  GetPedInVehicleSeat(cache.vehicle, -1) === cache.ped
-    ? cache.vehicle
-    : null;
+  cache.vehicle !== false && cache.seat === -1 ? cache.vehicle : null;
+/** Job shops and their stash show only to that job's on-duty members (the server checks again). */
+const onDutyFor = (shop: Shop) =>
+  !shop.job || getPlayerData("duty") === shop.job;
 
 /** Shop, stash and car wash points with their blips, built again when the panel changes them. */
 const points = new Points();
 function rebuild(): void {
   points.clear();
+  const s = settings.value;
   for (const shop of content.shops.values()) {
     points.add(`shop:${shop.id}`, {
       ped: shop.ped ?? undefined,
@@ -44,13 +47,9 @@ function rebuild(): void {
       radius: shop.radius,
       targetRadius: 2,
       interval: 400,
+      canShow: () => onDutyFor(shop),
       blip: shop.blip
-        ? {
-            sprite: shop.job ? 446 : 72,
-            color: 0,
-            scale: 0.7,
-            label: shop.label,
-          }
+        ? { ...(shop.job ? s.jobShopBlip : s.shopBlip), label: shop.label }
         : undefined,
       onPressed: () => openShop(shop),
     });
@@ -61,75 +60,61 @@ function rebuild(): void {
         icon: "box-open",
         radius: 1.5,
         interval: 400,
+        canShow: () => onDutyFor(shop),
         onPressed: () => openStash(shop.id),
       });
   }
-  for (const at of content.washes)
+  for (const at of content.washes.values())
     points.add(`wash:${at.id}`, {
       coords: at.coords,
-      label: Locale("MECH_PROMPT_WASH", content.settings.washPrice),
+      label: Locale("MECH_PROMPT_WASH", s.washPrice),
       icon: "droplet",
       radius: 7.5,
       promptOnly: true,
       interval: 400,
-      blip: { sprite: 100, color: 0, scale: 0.7, label: at.label },
+      blip: { ...s.washBlip, label: at.label },
       onPressed: () => wash(),
     });
 }
 
 rebuild();
-world.onChange("settings", () => {
-  content.settings = readSettings(world.get("settings"));
-  rebuild();
-});
-world.onChange("shops", () => {
-  content.shops = readShops(world.get("shops"));
-  rebuild();
-});
-world.onChange("washes", () => {
-  content.washes = readWashes(world.get("washes"));
-  rebuild();
-});
+world.onChange("settings", rebuild);
+world.onChange("shops", rebuild);
+world.onChange("washes", rebuild);
+onPlayerData("duty", () => points.refresh());
 
 async function openShop(shop: Shop): Promise<void> {
   const vehicle = driving();
   if (vehicle === null) return notify(Locale("MECH_ERR_DRIVER"), "warning");
-  await new Customs(vehicle, shop, content.settings).run();
+  await new Customs(vehicle, shop, settings.value).run();
 }
 
 async function wash(): Promise<void> {
   const vehicle = driving();
   if (vehicle === null) return notify(Locale("MECH_ERR_DRIVER"), "warning");
-  const result = record(
-    await triggerServerCallback(EVENTS.wash, [VehToNet(vehicle)]).catch(
-      () => null,
-    ),
-  );
-  if (result.ok !== true)
-    return notify(errorText(result, "MECH_ERR_FAR"), "error");
+  if (!(await callAction(EVENTS.wash, [VehToNet(vehicle)], FALLBACK))) return;
   await progress({
     label: Locale("MECH_WASHING"),
-    duration: content.settings.washSeconds * 1000,
+    duration: settings.value.washSeconds * 1000,
     allowVehicle: true,
   });
 }
 
 async function openStash(shopId: string): Promise<void> {
-  const result = record(
-    await triggerServerCallback(EVENTS.stash, [shopId]).catch(() => null),
-  );
-  if (result.ok !== true) notify(errorText(result, "MECH_ERR_FAR"), "error");
+  await callAction(EVENTS.stash, [shopId], FALLBACK);
 }
 
 /** The vehicle's owner applies what only it can change: health, deformation, dirt. */
 onServerEvent(
   EVENTS.fix,
   {
-    args: ([netId, engine]): [number, number | null] | null =>
-      typeof netId === "number" &&
-      (engine == null || typeof engine === "number")
-        ? [netId, engine ?? null]
-        : null,
+    args: ([netId, engine]): [number, number | null] | null => {
+      const id = readId(netId);
+      const value = engine == null ? null : readFinite(engine);
+      return id !== null && (engine == null || value !== null)
+        ? [id, value]
+        : null;
+    },
   },
   (netId, engine) => {
     if (!NetworkDoesEntityExistWithNetworkId(netId)) return;
@@ -153,12 +138,12 @@ onServerEvent(
 onServerEvent(
   EVENTS.kitStart,
   {
-    args: ([token, seconds, netId]): [number, number, number] | null =>
-      typeof token === "number" &&
-      typeof seconds === "number" &&
-      typeof netId === "number"
-        ? [token, seconds, netId]
-        : null,
+    args: ([token, seconds, netId]): [number, number, number] | null => {
+      const t = readId(token);
+      const s = readFinite(seconds);
+      const id = readId(netId);
+      return t !== null && s !== null && id !== null ? [t, s, id] : null;
+    },
   },
   async (token, seconds, netId) => {
     if (NetworkDoesEntityExistWithNetworkId(netId))
@@ -168,10 +153,6 @@ onServerEvent(
       duration: seconds * 1000,
       anim: { dict: "mini@repair", clip: "fixing_a_ped" },
     });
-    if (!done) return;
-    const result = record(
-      await triggerServerCallback(EVENTS.kitFinish, [token]).catch(() => null),
-    );
-    if (result.ok !== true) notify(errorText(result, "MECH_ERR_FAR"), "error");
+    if (done) await callAction(EVENTS.kitFinish, [token], FALLBACK);
   },
 );

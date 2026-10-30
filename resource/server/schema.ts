@@ -3,6 +3,15 @@ import type { PanelSchema } from "@aicore-fivem/shared";
 
 const int = (min: number, max: number) =>
   ({ type: "number", min, max, integer: true }) as const;
+const blip = {
+  type: "object",
+  optional: true,
+  fields: {
+    sprite: int(0, 1000),
+    color: int(0, 100),
+    scale: { type: "number", min: 0.3, max: 2 },
+  },
+} as const;
 
 /** ai-mechanic's panel: shops (repair, tuning, job stash), car washes and every price. */
 export const mechanicSchema: PanelSchema = {
@@ -33,6 +42,18 @@ export const mechanicSchema: PanelSchema = {
         washSeconds: int(1, 60),
         kitEngine: int(100, 1000),
         kitSeconds: int(1, 60),
+        kitItem: {
+          type: "text",
+          lookup: "item",
+          min: 2,
+          max: 48,
+          optional: true,
+        },
+        stashSlots: { ...int(1, 200), optional: true },
+        stashWeight: { ...int(1000, 10_000_000), optional: true },
+        shopBlip: blip,
+        jobShopBlip: blip,
+        washBlip: blip,
       },
     },
     shops: {
@@ -343,6 +364,50 @@ export const mechanicSchema: PanelSchema = {
               max: 60,
               unit: "s",
             },
+            {
+              widget: "text",
+              lookup: "item",
+              path: "kitItem",
+              label: "ADMIN_F_KIT_ITEM",
+              hint: "ADMIN_H_KIT_ITEM",
+              placeholder: "ADMIN_P_KIT_ITEM",
+            },
+          ],
+        },
+        {
+          icon: "box-open",
+          title: "ADMIN_C_STASH",
+          desc: "ADMIN_C_STASH_DESC",
+          fields: [
+            {
+              widget: "number",
+              path: "stashSlots",
+              label: "ADMIN_F_STASH_SLOTS",
+              min: 1,
+              max: 200,
+            },
+            {
+              widget: "number",
+              path: "stashWeight",
+              label: "ADMIN_F_STASH_WEIGHT",
+              min: 1000,
+              max: 10_000_000,
+              unit: "g",
+            },
+          ],
+        },
+        {
+          icon: "map",
+          title: "ADMIN_C_BLIPS",
+          desc: "ADMIN_C_BLIPS_DESC",
+          fields: [
+            { widget: "blip", path: "shopBlip", label: "ADMIN_F_SHOP_BLIP" },
+            {
+              widget: "blip",
+              path: "jobShopBlip",
+              label: "ADMIN_F_JOB_SHOP_BLIP",
+            },
+            { widget: "blip", path: "washBlip", label: "ADMIN_F_WASH_BLIP" },
           ],
         },
       ],

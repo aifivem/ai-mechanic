@@ -1,13 +1,13 @@
 import {
   cache,
+  callAction,
   getVehicleProps,
   loadLocaleTexts,
   menu,
   notify,
   setVehicleProps,
-  triggerServerCallback,
 } from "@aicore-fivem/lib/client";
-import { record, type VehicleProps } from "@aicore-fivem/lib/shared";
+import type { VehicleProps } from "@aicore-fivem/lib/shared";
 import type { MenuItem } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
@@ -25,11 +25,7 @@ import {
 
 const texts = loadLocaleTexts();
 const text = (key: string, fallback: string) => texts[key] ?? fallback;
-export const errorText = (v: unknown, fallback: string): string => {
-  const key =
-    typeof record(v).error === "string" ? String(record(v).error) : fallback;
-  return texts[key] ?? key;
-};
+export const FALLBACK = { fallback: "MECH_ERR_FAR" };
 const PAGE = 36;
 const WHEEL_TYPES = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12];
 
@@ -65,7 +61,7 @@ export class Customs {
           id: "repair",
           label: Locale("MECH_MENU_REPAIR"),
           icon: "wrench",
-          description: `$${this.repairPrice()}`,
+          description: Locale("MECH_PRICE", this.repairPrice()),
         });
       if (this.shop.tuning)
         items.push(
@@ -123,12 +119,7 @@ export class Customs {
   }
 
   private async repair(): Promise<void> {
-    const result = record(
-      await triggerServerCallback(EVENTS.repair, [
-        VehToNet(this.vehicle),
-      ]).catch(() => null),
-    );
-    if (result.ok !== true) notify(errorText(result, "MECH_ERR_FAR"), "error");
+    await callAction(EVENTS.repair, [VehToNet(this.vehicle)], FALLBACK);
   }
 
   private price(change: Change): number {
@@ -148,7 +139,7 @@ export class Customs {
         label: o.label,
         description: o.installed
           ? Locale("MECH_INSTALLED")
-          : `$${this.price(o.change)}`,
+          : Locale("MECH_PRICE", this.price(o.change)),
         disabled: o.installed,
       }));
       if (page > 0)
@@ -180,19 +171,13 @@ export class Customs {
       }
       const option = shown.find((o) => o.id === pick);
       if (!option || !DoesEntityExist(this.vehicle)) return this.restore();
-      const result = record(
-        await triggerServerCallback(EVENTS.buy, [
-          VehToNet(this.vehicle),
-          option.change,
-          this.props,
-        ]).catch(() => null),
+      const bought = await callAction(
+        EVENTS.buy,
+        [VehToNet(this.vehicle), option.change, this.props],
+        FALLBACK,
       );
-      if (result.ok === true)
-        this.props = applyChange(this.props, option.change);
-      else {
-        notify(errorText(result, "MECH_ERR_FAR"), "error");
-        this.restore();
-      }
+      if (bought) this.props = applyChange(this.props, option.change);
+      else this.restore();
     }
   }
 

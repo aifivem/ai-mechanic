@@ -1,12 +1,22 @@
 import {
   aiLog,
   aiLogChannels,
+  coordsOf,
+  Cooldowns,
   EntityState,
   notify,
   onClientCallback,
   optionalExport,
+  vehicleNearPlayer,
 } from "@aicore-fivem/lib/server";
-import { asArgs, toVehicleProps } from "@aicore-fivem/lib/shared";
+import {
+  distance,
+  fail,
+  oneArg,
+  readId,
+  toVehicleProps,
+  type VehicleProps,
+} from "@aicore-fivem/lib/shared";
 import { VEHICLE_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
 import {
@@ -16,17 +26,7 @@ import {
   toChange,
   type Change,
 } from "common/mechanic";
-import {
-  canUse,
-  content,
-  distance,
-  drivenVehicle,
-  fail,
-  ownedId,
-  pay,
-  pos,
-  shopAt,
-} from "./content";
+import { canUse, content, ownedId, pay, payerOf, shopAt } from "./content";
 import "./service";
 
 const propsState = new EntityState(
@@ -36,8 +36,9 @@ const propsState = new EntityState(
 
 aiLogChannels({ tuning: { active: false }, repairs: { active: false } });
 
-const netIdOk = (v: unknown): v is number =>
-  typeof v === "number" && Number.isInteger(v) && v > 0;
+/** The vehicle the player drives behind a client's net id, or 0. */
+const driven = (source: number, netId: number) =>
+  vehicleNearPlayer(source, netId, { driver: true });
 
 /**
  * One tuning purchase. The base is the vehicle's props bag (owned vehicles) or what the client read; plate, health
@@ -46,9 +47,14 @@ const netIdOk = (v: unknown): v is number =>
 onClientCallback(
   EVENTS.buy,
   {
-    args: ([netId, raw, base]): [number, Change, unknown] | null => {
+    args: ([netId, raw, base]):
+      [number, Change, VehicleProps | null] | null => {
+      const id = readId(netId);
       const change = toChange(raw);
-      return netIdOk(netId) && change ? [netId, change, base] : null;
+      const props = base == null ? null : toVehicleProps(base);
+      return id !== null && change && (base == null || props)
+        ? [id, change, props]
+        : null;
     },
     lock: true,
   },
@@ -56,15 +62,16 @@ onClientCallback(
     const shop = shopAt(source, "tuning");
     if (!shop) return fail("MECH_ERR_FAR");
     if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
-    const vehicle = drivenVehicle(source, netId);
-    if (vehicle === null) return fail("MECH_ERR_DRIVER");
-    const current = propsState.get(vehicle) ?? toVehicleProps(base);
+    const vehicle = driven(source, netId);
+    if (!vehicle) return fail("MECH_ERR_DRIVER");
+    const current = propsState.get(vehicle) ?? base;
     if (!current || current.model !== GetEntityModel(vehicle))
       return fail("MECH_ERR_DRIVER");
     const price = Math.round(
       priceOf(change, content.settings) * shop.multiplier,
     );
-    if (!pay(source, shop, price, `tuning:${shop.id}`))
+    const payer = payerOf(source, shop, vehicle);
+    if (!pay(source, shop, payer, price, `tuning:${shop.id}`))
       return fail("MECH_ERR_MONEY");
     const next = {
       ...applyChange(current, change),
@@ -80,7 +87,7 @@ onClientCallback(
     if (price > 0) notify(source, Locale("MECH_PAID", price), "success", 2500);
     aiLog("tuning", `bought ${change.kind}`, {
       source,
-      metadata: { shop: shop.id, price, change },
+      metadata: { shop: shop.id, price, payer, vehicle: id, change },
     });
     return { ok: true };
   },
@@ -95,13 +102,13 @@ function fixOn(vehicle: number, engine: number | null): void {
 
 onClientCallback(
   EVENTS.repair,
-  { args: ([netId]) => asArgs(netIdOk(netId) ? netId : null), lock: true },
+  { args: oneArg(readId), lock: true },
   (source, netId) => {
     const shop = shopAt(source, "repair");
     if (!shop) return fail("MECH_ERR_FAR");
     if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
-    const vehicle = drivenVehicle(source, netId);
-    if (vehicle === null) return fail("MECH_ERR_DRIVER");
+    const vehicle = driven(source, netId);
+    if (!vehicle) return fail("MECH_ERR_DRIVER");
     const damage =
       Math.max(0, 1000 - GetVehicleEngineHealth(vehicle)) +
       Math.max(0, 1000 - GetVehicleBodyHealth(vehicle));
@@ -109,7 +116,8 @@ onClientCallback(
     const price = Math.round(
       damage * content.settings.repairPoint * shop.multiplier,
     );
-    if (!pay(source, shop, price, `repair:${shop.id}`))
+    const payer = payerOf(source, shop, vehicle);
+    if (!pay(source, shop, payer, price, `repair:${shop.id}`))
       return fail("MECH_ERR_MONEY");
     fixOn(vehicle, null);
     const bag = propsState.get(vehicle);
@@ -124,39 +132,37 @@ onClientCallback(
     notify(source, Locale("MECH_REPAIRED", price), "success");
     aiLog("repairs", "shop repair", {
       source,
-      metadata: { shop: shop.id, price },
+      metadata: { shop: shop.id, price, payer, vehicle: id },
     });
     return { ok: true };
   },
 );
 
-/** Washes in progress: one per player; the dirt goes when the wash time is over. */
-const washing = new Set<number>();
+/** Washes in progress: one per player for the wash time; the dirt goes when it is over. */
+const washing = new Cooldowns();
 
 onClientCallback(
   EVENTS.wash,
-  { args: ([netId]) => asArgs(netIdOk(netId) ? netId : null), lock: true },
+  { args: oneArg(readId), lock: true },
   (source, netId) => {
-    if (washing.has(source)) return fail("MECH_ERR_BUSY");
-    const p = pos(source);
-    if (!content.washes.some((w) => distance(p, w.coords) <= 10))
+    if (!washing.ready(source)) return fail("MECH_ERR_BUSY");
+    const p = coordsOf(source);
+    if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10))
       return fail("MECH_ERR_FAR");
-    const vehicle = drivenVehicle(source, netId);
-    if (vehicle === null) return fail("MECH_ERR_DRIVER");
+    const vehicle = driven(source, netId);
+    if (!vehicle) return fail("MECH_ERR_DRIVER");
     if (GetVehicleDirtLevel(vehicle) < 0.1) return fail("MECH_ERR_CLEAN");
-    if (!pay(source, null, content.settings.washPrice, "carwash"))
+    const { washPrice, washSeconds } = content.settings;
+    if (!pay(source, null, "player", washPrice, "carwash"))
       return fail("MECH_ERR_MONEY");
-    washing.add(source);
+    washing.start(source, washSeconds * 1000);
     setTimeout(() => {
-      washing.delete(source);
       if (!DoesEntityExist(vehicle)) return;
       SetVehicleDirtLevel(vehicle, 0);
       const owner = NetworkGetEntityOwner(vehicle);
       if (owner > 0)
         emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1);
-    }, content.settings.washSeconds * 1000);
-    return { ok: true, seconds: content.settings.washSeconds };
+    }, washSeconds * 1000);
+    return { ok: true, seconds: washSeconds };
   },
 );
-
-on("playerDropped", () => washing.delete(Number(globalThis.source)));

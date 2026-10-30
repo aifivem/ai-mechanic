@@ -95,6 +95,102 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 60
+    },
+    "kitItem": {
+      "description": "Kit item: The item players use as a repair kit.",
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 48
+    },
+    "stashSlots": {
+      "description": "Slots",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200
+    },
+    "stashWeight": {
+      "description": "Weight",
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 10000000
+    },
+    "shopBlip": {
+      "description": "Public shop",
+      "type": "object",
+      "properties": {
+        "sprite": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "color": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.3,
+          "maximum": 2
+        }
+      },
+      "required": [
+        "sprite",
+        "color",
+        "scale"
+      ]
+    },
+    "jobShopBlip": {
+      "description": "Job shop",
+      "type": "object",
+      "properties": {
+        "sprite": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "color": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.3,
+          "maximum": 2
+        }
+      },
+      "required": [
+        "sprite",
+        "color",
+        "scale"
+      ]
+    },
+    "washBlip": {
+      "description": "Car wash",
+      "type": "object",
+      "properties": {
+        "sprite": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "color": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.3,
+          "maximum": 2
+        }
+      },
+      "required": [
+        "sprite",
+        "color",
+        "scale"
+      ]
     }
   },
   "required": [

@@ -1,7 +1,7 @@
-import type { PanelSchema } from "@aicore-fivem/shared"
+import type { PanelSchema } from "@aicore-fivem/shared";
 
 const int = (min: number, max: number) =>
-  ({ type: "number", min, max, integer: true }) as const
+  ({ type: "number", min, max, integer: true }) as const;
 
 /** ai-mechanic's panel: shops (repair, tuning, job stash), car washes and every price. */
 export const mechanicSchema: PanelSchema = {
@@ -340,4 +340,4 @@ export const mechanicSchema: PanelSchema = {
       ],
     },
   ],
-}
+};

@@ -5,7 +5,7 @@ import {
   record,
   str,
   type VehicleProps,
-} from "@aicore-fivem/lib/shared"
+} from "@aicore-fivem/lib/shared";
 
 /** ai-mechanic's contracts, panel content and the tuning change rules (both sides). No natives. */
 
@@ -24,37 +24,37 @@ export const EVENTS = {
   kitStart: "ai-mechanic:client:kitStart",
   /** Server -> entity owner: (netId, engine | null) fix the body (engine null) or set the engine health; (netId, -1) wash. */
   fix: "ai-mechanic:client:fix",
-} as const
+} as const;
 
-type Point = { x: number; y: number; z: number }
+type Point = { x: number; y: number; z: number };
 const point = (v: unknown): Point => {
-  const p = record(v)
-  return { x: num(p.x, 0), y: num(p.y, 0), z: num(p.z, 0) }
-}
+  const p = record(v);
+  return { x: num(p.x, 0), y: num(p.y, 0), z: num(p.z, 0) };
+};
 
 export interface Settings {
-  accounts: string[]
+  accounts: string[];
   /** Dollars per health point repaired (engine + body, 2000 points). */
-  repairPoint: number
-  performance: number
-  turbo: number
-  xenon: number
-  cosmetic: number
-  wheels: number
-  paint: number
-  tint: number
-  plate: number
-  washPrice: number
-  washSeconds: number
-  kitEngine: number
-  kitSeconds: number
+  repairPoint: number;
+  performance: number;
+  turbo: number;
+  xenon: number;
+  cosmetic: number;
+  wheels: number;
+  paint: number;
+  tint: number;
+  plate: number;
+  washPrice: number;
+  washSeconds: number;
+  kitEngine: number;
+  kitSeconds: number;
 }
 
 export function readSettings(raw: unknown): Settings {
-  const v = record(raw)
+  const v = record(raw);
   const accounts = Array.isArray(v.accounts)
     ? v.accounts.filter((a): a is string => typeof a === "string")
-    : []
+    : [];
   return {
     accounts: accounts.length > 0 ? accounts : ["cash", "bank"],
     repairPoint: num(v.repairPoint, 2),
@@ -70,29 +70,29 @@ export function readSettings(raw: unknown): Settings {
     washSeconds: int(v.washSeconds, 6, 1, 60),
     kitEngine: int(v.kitEngine, 750, 100, 1000),
     kitSeconds: int(v.kitSeconds, 10, 1, 60),
-  }
+  };
 }
 
 export interface Shop {
-  id: string
-  label: string
+  id: string;
+  label: string;
   /** Empty: anyone, paid by the driver; otherwise on-duty members of this job, paid from the job's account. */
-  job: string
-  coords: Point
-  radius: number
-  blip: boolean
-  repair: boolean
-  tuning: boolean
-  multiplier: number
+  job: string;
+  coords: Point;
+  radius: number;
+  blip: boolean;
+  repair: boolean;
+  tuning: boolean;
+  multiplier: number;
   /** Job shops' stash; (0, 0, 0) = none. */
-  stash: Point | null
+  stash: Point | null;
 }
 
 export function readShops(raw: unknown): Map<string, Shop> {
-  const out = new Map<string, Shop>()
+  const out = new Map<string, Shop>();
   for (const [id, value] of Object.entries(record(raw))) {
-    const v = record(value)
-    const stash = point(v.stash)
+    const v = record(value);
+    const stash = point(v.stash);
     out.set(id, {
       id,
       label: str(v.label, id, 48),
@@ -104,36 +104,36 @@ export function readShops(raw: unknown): Map<string, Shop> {
       tuning: bool(v.tuning, true),
       multiplier: num(v.multiplier, 1),
       stash: stash.x === 0 && stash.y === 0 ? null : stash,
-    })
+    });
   }
-  return out
+  return out;
 }
 
 export interface Wash {
-  id: string
-  label: string
-  coords: Point
+  id: string;
+  label: string;
+  coords: Point;
 }
 
 export function readWashes(raw: unknown): Wash[] {
   return Object.entries(record(raw)).map(([id, value]) => {
-    const v = record(value)
-    return { id, label: str(v.label, id, 48), coords: point(v.coords) }
-  })
+    const v = record(value);
+    return { id, label: str(v.label, id, 48), coords: point(v.coords) };
+  });
 }
 
 /** Mod slots by price group; turbo (18) and xenon (22) are on / off. */
-export const PERFORMANCE_MODS = [11, 12, 13, 15, 16] as const
+export const PERFORMANCE_MODS = [11, 12, 13, 15, 16] as const;
 export const COSMETIC_MODS = [
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
   35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48,
-] as const
-export const TOGGLE_MODS = [18, 22] as const
-export const WHEEL_MOD = 23
+] as const;
+export const TOGGLE_MODS = [18, 22] as const;
+export const WHEEL_MOD = 23;
 /** GTA colour indices offered as paint. */
 export const PAINTS = [
   0, 1, 4, 112, 27, 30, 38, 89, 92, 53, 64, 70, 145, 135, 96, 158, 120,
-] as const
+] as const;
 
 /** One purchase: a mod level, a wheel, a paint, the window tint or the plate style. */
 export type Change =
@@ -141,41 +141,41 @@ export type Change =
   | { kind: "wheels"; wheelType: number; index: number }
   | { kind: "paint"; slot: 0 | 1; color: number }
   | { kind: "tint"; value: number }
-  | { kind: "plate"; value: number }
+  | { kind: "plate"; value: number };
 
 const isInt = (v: unknown, min: number, max: number): v is number =>
-  typeof v === "number" && Number.isInteger(v) && v >= min && v <= max
+  typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
 const MOD_TYPES = new Set<number>([
   ...PERFORMANCE_MODS,
   ...COSMETIC_MODS,
   ...TOGGLE_MODS,
-])
+]);
 
 export function toChange(v: unknown): Change | null {
-  const c = record(v)
+  const c = record(v);
   switch (c.kind) {
     case "mod":
       return isInt(c.type, 0, 48) &&
         MOD_TYPES.has(c.type) &&
         isInt(c.index, -1, 250)
         ? { kind: "mod", type: c.type, index: c.index }
-        : null
+        : null;
     case "wheels":
       return isInt(c.wheelType, 0, 12) && isInt(c.index, -1, 250)
         ? { kind: "wheels", wheelType: c.wheelType, index: c.index }
-        : null
+        : null;
     case "paint":
       return (c.slot === 0 || c.slot === 1) &&
         isInt(c.color, 0, 160) &&
         (PAINTS as readonly number[]).includes(c.color)
         ? { kind: "paint", slot: c.slot, color: c.color }
-        : null
+        : null;
     case "tint":
-      return isInt(c.value, 0, 6) ? { kind: "tint", value: c.value } : null
+      return isInt(c.value, 0, 6) ? { kind: "tint", value: c.value } : null;
     case "plate":
-      return isInt(c.value, 0, 5) ? { kind: "plate", value: c.value } : null
+      return isInt(c.value, 0, 5) ? { kind: "plate", value: c.value } : null;
     default:
-      return null
+      return null;
   }
 }
 
@@ -183,23 +183,23 @@ export function toChange(v: unknown): Change | null {
 export function priceOf(change: Change, s: Settings): number {
   switch (change.kind) {
     case "mod":
-      if (change.index < 0) return 0
-      if (change.type === 18) return s.turbo
-      if (change.type === 22) return s.xenon
+      if (change.index < 0) return 0;
+      if (change.type === 18) return s.turbo;
+      if (change.type === 22) return s.xenon;
       return (PERFORMANCE_MODS as readonly number[]).includes(change.type)
         ? s.performance * (change.index + 1)
-        : s.cosmetic
+        : s.cosmetic;
     case "wheels":
-      return change.index < 0 ? 0 : s.wheels
+      return change.index < 0 ? 0 : s.wheels;
     case "paint":
-      return s.paint
+      return s.paint;
     case "tint":
-      return change.value === 0 ? 0 : s.tint
+      return change.value === 0 ? 0 : s.tint;
     case "plate":
-      return s.plate
+      return s.plate;
     default: {
-      const _exhaustive: never = change
-      return _exhaustive
+      const _exhaustive: never = change;
+      return _exhaustive;
     }
   }
 }
@@ -210,32 +210,32 @@ export function applyChange(props: VehicleProps, change: Change): VehicleProps {
     ...props,
     mods: { ...props.mods },
     colors: [...props.colors],
-  }
+  };
   switch (change.kind) {
     case "mod":
       next.mods[change.type] = (TOGGLE_MODS as readonly number[]).includes(
-        change.type
+        change.type,
       )
         ? change.index >= 0
           ? 1
           : 0
-        : change.index
-      break
+        : change.index;
+      break;
     case "wheels":
-      next.wheelType = change.wheelType
-      next.mods[WHEEL_MOD] = change.index
-      break
+      next.wheelType = change.wheelType;
+      next.mods[WHEEL_MOD] = change.index;
+      break;
     case "paint":
-      next.colors[change.slot] = change.color
-      if (change.slot === 0) next.customPrimary = null
-      else next.customSecondary = null
-      break
+      next.colors[change.slot] = change.color;
+      if (change.slot === 0) next.customPrimary = null;
+      else next.customSecondary = null;
+      break;
     case "tint":
-      next.windowTint = change.value
-      break
+      next.windowTint = change.value;
+      break;
     case "plate":
-      next.plateIndex = change.value
-      break
+      next.plateIndex = change.value;
+      break;
   }
-  return next
+  return next;
 }

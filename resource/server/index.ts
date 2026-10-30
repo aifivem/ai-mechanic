@@ -1,4 +1,11 @@
-import { aiLog, aiLogChannels, EntityState, notify, onClientCallback, optionalExport } from "@aicore-fivem/lib/server";
+import {
+  aiLog,
+  aiLogChannels,
+  EntityState,
+  notify,
+  onClientCallback,
+  optionalExport,
+} from "@aicore-fivem/lib/server";
 import { asArgs, toVehicleProps } from "@aicore-fivem/lib/shared";
 import { VEHICLE_BAGS } from "@aicore-fivem/shared";
 import { Locale } from "common";
@@ -22,7 +29,10 @@ import {
 } from "./content";
 import "./service";
 
-const propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? undefined);
+const propsState = new EntityState(
+  VEHICLE_BAGS.props,
+  (v) => toVehicleProps(v) ?? undefined,
+);
 
 aiLogChannels({ tuning: { active: false }, repairs: { active: false } });
 
@@ -48,9 +58,7 @@ onClientCallback(
     if (!canUse(source, shop)) return fail("MECH_ERR_JOB");
     const vehicle = drivenVehicle(source, netId);
     if (vehicle === null) return fail("MECH_ERR_DRIVER");
-    const current =
-      propsState.get(vehicle) ??
-      toVehicleProps(base);
+    const current = propsState.get(vehicle) ?? toVehicleProps(base);
     if (!current || current.model !== GetEntityModel(vehicle))
       return fail("MECH_ERR_DRIVER");
     const price = Math.round(
@@ -105,7 +113,8 @@ onClientCallback(
       return fail("MECH_ERR_MONEY");
     fixOn(vehicle, null);
     const bag = propsState.get(vehicle);
-    if (bag) propsState.set(vehicle, { ...bag, engineHealth: 1000, bodyHealth: 1000 });
+    if (bag)
+      propsState.set(vehicle, { ...bag, engineHealth: 1000, bodyHealth: 1000 });
     const id = ownedId(vehicle);
     if (id !== null)
       optionalExport("ai-vehicles")?.SaveVehicle(id, {

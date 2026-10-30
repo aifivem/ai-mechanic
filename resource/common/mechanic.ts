@@ -1,4 +1,13 @@
-import { bool, int, num, record, str, type VehicleProps, readPlacePed, type PlacePed } from "@aicore-fivem/lib/shared";
+import {
+  bool,
+  int,
+  num,
+  record,
+  str,
+  type VehicleProps,
+  readPlacePed,
+  type PlacePed,
+} from "@aicore-fivem/lib/shared";
 
 /** ai-mechanic's contracts, panel content and the tuning change rules (both sides). No natives. */
 

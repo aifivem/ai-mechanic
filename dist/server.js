@@ -95,6 +95,86 @@ function toVehicleProps(v) {
 		bodyHealth: n(v.bodyHealth, 1e3)
 	};
 }
+// ../../../packages/lib/src/shared/placePed.ts
+const isRecord$1 = (v) => typeof v == "object" && !!v && !Array.isArray(v), SCENARIOS = [
+	"",
+	"WORLD_HUMAN_STAND_IMPATIENT",
+	"WORLD_HUMAN_CLIPBOARD",
+	"WORLD_HUMAN_STAND_MOBILE",
+	"WORLD_HUMAN_AA_COFFEE",
+	"WORLD_HUMAN_SMOKING",
+	"WORLD_HUMAN_GUARD_STAND",
+	"WORLD_HUMAN_COP_IDLES",
+	"WORLD_HUMAN_HANG_OUT_STREET"
+], PLACE_PED_SPEC = {
+	type: "object",
+	optional: !0,
+	fields: {
+		model: {
+			type: "text",
+			max: 64,
+			optional: !0
+		},
+		scenario: {
+			type: "enum",
+			values: [...SCENARIOS],
+			optional: !0
+		},
+		coords: {
+			type: "vec4",
+			optional: !0
+		}
+	}
+};
+function placePedFields(path = "ped") {
+	return [
+		{
+			widget: "model",
+			kind: "ped",
+			path: `${path}.model`,
+			label: "ADMIN_F_PED_MODEL",
+			hint: "ADMIN_H_PED_MODEL",
+			placeholder: "ADMIN_PH_PED_MODEL"
+		},
+		{
+			widget: "select",
+			path: `${path}.scenario`,
+			label: "ADMIN_F_PED_SCENARIO",
+			hint: "ADMIN_H_PED_SCENARIO",
+			options: SCENARIOS.map((value) => ({
+				value,
+				label: value ? `ADMIN_O_SCENARIO_${value}` : "ADMIN_O_SCENARIO_NONE"
+			}))
+		},
+		{
+			widget: "point",
+			path: `${path}.coords`,
+			heading: !0,
+			ground: !0,
+			label: "ADMIN_F_PED_POSITION",
+			hint: "ADMIN_H_PED_POSITION"
+		}
+	];
+}
+function readPlacePed(value) {
+	if (!isRecord$1(value) || typeof value.model != "string" || !value.model.trim()) return null;
+	let c = value.coords, coords = isRecord$1(c) && [
+		c.x,
+		c.y,
+		c.z,
+		c.heading
+	].every((n) => typeof n == "number") ? {
+		x: Number(c.x),
+		y: Number(c.y),
+		z: Number(c.z),
+		heading: Number(c.heading)
+	} : void 0;
+	return {
+		model: value.model.trim(),
+		scenario: typeof value.scenario == "string" && value.scenario ? value.scenario : void 0,
+		coords
+	};
+}
 // ../../../packages/lib/src/shared/index.ts
 function isRecord(value) {
 	return typeof value == "object" && !!value && !Array.isArray(value);
@@ -325,6 +405,16 @@ function toPatch(value) {
 			action: "delete",
 			key
 		} : null;
+		case "import": {
+			if (!isRecord(value.records)) return null;
+			let records = {};
+			for (let [k, v] of Object.entries(value.records)) isRecord(v) && (records[k] = v);
+			return Object.keys(records).length > 0 && Object.keys(records).length <= 500 ? {
+				file: value.file,
+				action: "import",
+				records
+			} : null;
+		}
 		default: return null;
 	}
 }
@@ -414,13 +504,19 @@ const SCHEMA_KEY = {
 	type: "string",
 	description: "This file's JSON Schema (for editors)."
 };
-function texts(resource) {
+function langFile(resource) {
 	try {
 		let raw = JSON.parse(LoadResourceFile(resource, "locales/en.json") ?? "{}");
 		return isRecord(raw) ? Object.fromEntries(Object.entries(raw).filter((e) => typeof e[1] == "string")) : {};
 	} catch {
 		return {};
 	}
+}
+function texts(resource) {
+	return {
+		...langFile("ai-core"),
+		...langFile(resource)
+	};
 }
 function collect(fields, prefix, lang, out) {
 	for (let field of fields) {
@@ -538,7 +634,15 @@ function writeSchema(resource, name, text, log) {
 	(0, node_fs_promises.mkdir)(dir, { recursive: !0 }).then(() => (0, node_fs_promises.writeFile)(`${dir}/${name}.schema.json`, text, "utf8")).catch((error) => log.error(`writing ${resource}/${path} failed`, error));
 }
 // ../../../packages/lib/src/server/admin/panel.ts
-const core$5 = resourceExport(CORE.resource);
+const core$5 = resourceExport(CORE.resource), DEFAULT_KEY = "^[a-z0-9_]{2,32}$";
+function imported(spec, value) {
+	let base = clone(spec.newRecord ?? {}), out = {};
+	for (let name of Object.keys(spec.sections)) {
+		let v = name in value ? value[name] : base[name];
+		v !== void 0 && (out[name] = clone(v));
+	}
+	return out;
+}
 var AdminPanel = class {
 	schema;
 	data = new Map();
@@ -588,8 +692,23 @@ var AdminPanel = class {
 	}
 	check(patch, spec) {
 		let data = this.get(patch.file);
-		if (patch.action === "create") return spec.kind !== "records" || !new RegExp(spec.keyPattern ?? "^[a-z0-9_]{2,32}$").test(patch.key) ? ERR.pattern : patch.key in data ? "ADMIN_ERR_EXISTS" : null;
+		if (patch.action === "create") return spec.kind !== "records" || !new RegExp(spec.keyPattern ?? DEFAULT_KEY).test(patch.key) ? ERR.pattern : patch.key in data ? "ADMIN_ERR_EXISTS" : null;
 		if (patch.action === "delete") return spec.kind !== "records" || !(patch.key in data) ? ERR.type : spec.locked?.includes(patch.key) ? "ADMIN_ERR_LOCKED" : null;
+		if (patch.action === "import") {
+			if (spec.kind !== "records") return ERR.type;
+			let pattern = new RegExp(spec.keyPattern ?? DEFAULT_KEY);
+			for (let [key, value] of Object.entries(patch.records)) {
+				if (!pattern.test(key)) return ERR.pattern;
+				let record = imported(spec, value);
+				for (let [name, section] of Object.entries(spec.sections)) {
+					let refusal = validate(section, record[name], name);
+					if (refusal) return refusal.error;
+				}
+				let ruled = this.rules.get(patch.file)?.(key, record);
+				if (ruled) return ruled;
+			}
+			return null;
+		}
 		let section = spec.sections[patch.section];
 		if (!section || spec.kind === "records" && (!patch.key || !(patch.key in data))) return ERR.type;
 		let refusal = validate(section, patch.value, patch.section);
@@ -606,7 +725,12 @@ var AdminPanel = class {
 			let record = clone(spec.newRecord ?? {});
 			spec.labelPath && (record[spec.labelPath] = patch.label), data[patch.key] = record;
 		} else if (patch.action === "delete") delete data[patch.key];
-		else {
+		else if (patch.action === "import") {
+			for (let [key, value] of Object.entries(patch.records)) data[key] = imported(spec, value);
+			this.data.set(patch.file, data);
+			for (let key of Object.keys(patch.records)) this.changed(patch.file, key);
+			return;
+		} else {
 			let target = spec.kind === "records" ? data[patch.key ?? ""] : data;
 			if (!isRecord(target)) return;
 			patch.value === void 0 || patch.value === null ? delete target[patch.section] : target[patch.section] = clone(patch.value);
@@ -14736,6 +14860,7 @@ function readShops(raw) {
 	for (let [id, value] of Object.entries(record(raw))) {
 		let v = record(value), stash = point(v.stash);
 		out.set(id, {
+			ped: readPlacePed(v.ped),
 			id,
 			label: str(v.label, id, 48),
 			job: str(v.job, "", 32),
@@ -14951,6 +15076,7 @@ const int = (min, max) => ({
 				}
 			},
 			sections: {
+				ped: PLACE_PED_SPEC,
 				label: {
 					type: "text",
 					min: 1,
@@ -15012,81 +15138,90 @@ const int = (min, max) => ({
 			createLabel: "ADMIN_NEW_SHOP",
 			deleteLabel: "ADMIN_DELETE_SHOP",
 			deleteDesc: "ADMIN_DELETE_SHOP_DESC",
-			cards: [{
-				icon: "wrench",
-				title: "ADMIN_C_SHOP",
-				desc: "ADMIN_C_SHOP_DESC",
-				fields: [
-					{
+			cards: [
+				{
+					icon: "wrench",
+					title: "ADMIN_C_SHOP",
+					desc: "ADMIN_C_SHOP_DESC",
+					fields: [
+						{
+							widget: "text",
+							path: "label",
+							suggest: { from: "coords" },
+							label: "ADMIN_F_LABEL",
+							placeholder: "ADMIN_P_LABEL"
+						},
+						{
+							widget: "point",
+							path: "coords",
+							label: "ADMIN_F_COORDS",
+							hint: "ADMIN_H_COORDS",
+							ground: !0
+						},
+						{
+							widget: "number",
+							path: "radius",
+							label: "ADMIN_F_RADIUS",
+							hint: "ADMIN_H_RADIUS",
+							min: 2,
+							max: 40,
+							unit: "m"
+						},
+						{
+							widget: "switch",
+							path: "blip",
+							label: "ADMIN_F_BLIP"
+						},
+						{
+							widget: "switch",
+							path: "repair",
+							label: "ADMIN_F_REPAIR",
+							hint: "ADMIN_H_REPAIR"
+						},
+						{
+							widget: "switch",
+							path: "tuning",
+							label: "ADMIN_F_TUNING",
+							hint: "ADMIN_H_TUNING"
+						},
+						{
+							widget: "number",
+							path: "multiplier",
+							label: "ADMIN_F_MULTIPLIER",
+							hint: "ADMIN_H_MULTIPLIER",
+							min: 0,
+							max: 10,
+							step: .05,
+							unit: "x"
+						}
+					]
+				},
+				{
+					icon: "briefcase",
+					title: "ADMIN_C_JOB",
+					desc: "ADMIN_C_JOB_DESC",
+					fields: [{
 						widget: "text",
-						path: "label",
-						suggest: { from: "coords" },
-						label: "ADMIN_F_LABEL",
-						placeholder: "ADMIN_P_LABEL"
-					},
-					{
+						lookup: "job",
+						path: "job",
+						label: "ADMIN_F_JOB",
+						hint: "ADMIN_H_JOB",
+						placeholder: "ADMIN_P_JOB"
+					}, {
 						widget: "point",
-						path: "coords",
-						label: "ADMIN_F_COORDS",
-						hint: "ADMIN_H_COORDS",
+						path: "stash",
+						label: "ADMIN_F_STASH",
+						hint: "ADMIN_H_STASH",
 						ground: !0
-					},
-					{
-						widget: "number",
-						path: "radius",
-						label: "ADMIN_F_RADIUS",
-						hint: "ADMIN_H_RADIUS",
-						min: 2,
-						max: 40,
-						unit: "m"
-					},
-					{
-						widget: "switch",
-						path: "blip",
-						label: "ADMIN_F_BLIP"
-					},
-					{
-						widget: "switch",
-						path: "repair",
-						label: "ADMIN_F_REPAIR",
-						hint: "ADMIN_H_REPAIR"
-					},
-					{
-						widget: "switch",
-						path: "tuning",
-						label: "ADMIN_F_TUNING",
-						hint: "ADMIN_H_TUNING"
-					},
-					{
-						widget: "number",
-						path: "multiplier",
-						label: "ADMIN_F_MULTIPLIER",
-						hint: "ADMIN_H_MULTIPLIER",
-						min: 0,
-						max: 10,
-						step: .05,
-						unit: "x"
-					}
-				]
-			}, {
-				icon: "briefcase",
-				title: "ADMIN_C_JOB",
-				desc: "ADMIN_C_JOB_DESC",
-				fields: [{
-					widget: "text",
-					lookup: "job",
-					path: "job",
-					label: "ADMIN_F_JOB",
-					hint: "ADMIN_H_JOB",
-					placeholder: "ADMIN_P_JOB"
-				}, {
-					widget: "point",
-					path: "stash",
-					label: "ADMIN_F_STASH",
-					hint: "ADMIN_H_STASH",
-					ground: !0
-				}]
-			}]
+					}]
+				},
+				{
+					icon: "user",
+					title: "ADMIN_C_PED",
+					desc: "ADMIN_C_PED_DESC",
+					fields: placePedFields()
+				}
+			]
 		},
 		{
 			id: "washes",

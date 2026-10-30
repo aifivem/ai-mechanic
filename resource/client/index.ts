@@ -37,6 +37,7 @@ function rebuild(): void {
   points.clear();
   for (const shop of content.shops.values()) {
     points.add(`shop:${shop.id}`, {
+      ped: shop.ped ?? undefined,
       coords: shop.coords,
       label: Locale("MECH_PROMPT_SHOP", shop.label),
       icon: "screwdriver-wrench",

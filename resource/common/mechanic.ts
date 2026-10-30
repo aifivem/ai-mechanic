@@ -1,11 +1,4 @@
-import {
-  bool,
-  int,
-  num,
-  record,
-  str,
-  type VehicleProps,
-} from "@aicore-fivem/lib/shared";
+import { bool, int, num, record, str, type VehicleProps, readPlacePed, type PlacePed } from "@aicore-fivem/lib/shared";
 
 /** ai-mechanic's contracts, panel content and the tuning change rules (both sides). No natives. */
 
@@ -74,6 +67,8 @@ export function readSettings(raw: unknown): Settings {
 }
 
 export interface Shop {
+  /** NPC standing at the place (panel), null for none. */
+  ped: PlacePed | null;
   id: string;
   label: string;
   /** Empty: anyone, paid by the driver; otherwise on-duty members of this job, paid from the job's account. */
@@ -94,6 +89,7 @@ export function readShops(raw: unknown): Map<string, Shop> {
     const v = record(value);
     const stash = point(v.stash);
     out.set(id, {
+      ped: readPlacePed(v.ped),
       id,
       label: str(v.label, id, 48),
       job: str(v.job, "", 32),

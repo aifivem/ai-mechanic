@@ -12,6 +12,55 @@
     "^[a-z0-9_]{2,32}$": {
       "type": "object",
       "properties": {
+        "ped": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "description": "Model: The ped model; empty means no NPC. Players see it within 50 m.",
+              "type": "string",
+              "maxLength": 64
+            },
+            "scenario": {
+              "description": "What it does: An idle animation the NPC plays on the spot.",
+              "enum": [
+                "",
+                "WORLD_HUMAN_STAND_IMPATIENT",
+                "WORLD_HUMAN_CLIPBOARD",
+                "WORLD_HUMAN_STAND_MOBILE",
+                "WORLD_HUMAN_AA_COFFEE",
+                "WORLD_HUMAN_SMOKING",
+                "WORLD_HUMAN_GUARD_STAND",
+                "WORLD_HUMAN_COP_IDLES",
+                "WORLD_HUMAN_HANG_OUT_STREET"
+              ]
+            },
+            "coords": {
+              "description": "Where it stands: The NPC's floor spot and the way it faces (scroll in the free camera); without one it stands on the place's point.",
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "z",
+                "heading"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                },
+                "heading": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "required": []
+        },
         "label": {
           "description": "Name",
           "type": "string",

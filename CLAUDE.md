@@ -1,6 +1,6 @@
 # ai-mechanic
 
-Mechanic shops (repair and tuning with live preview, public or run by a job with a shared stash), car washes and the repair kit item. Depends on ai-core (money, job accounts, menu, prompts, progress); uses ai-vehicles (props bag, saving owned vehicles) when it runs, and the active inventory through ai-core's inventory layer (lib `inventory`) (repair kit, stash). Research: `docs/research/ai-mechanic.md`.
+Mechanic shops (repair and tuning with live preview, public or run by a job with a shared stash), car washes and the repair kit item. Depends on ai-core (money, job accounts, menu, prompts, progress); uses ai-vehicles (props bag, saving owned vehicles) when it runs, and the active inventory through ai-core's inventory layer (lib `inventory`) (repair kit, stash).
 
 ## Decisions
 

@@ -1,5 +1,5 @@
 name 'ai-mechanic'
-author 'ai-core'
+author 'TGIANN'
 version '0.1.0'
 license 'GPL-3.0-only'
 description 'Mechanic shops: repair, tuning with live preview, car washes and the repair kit'

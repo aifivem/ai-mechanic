@@ -5,7 +5,7 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 ## Decisions
 
 - Tuning is one change per purchase (`Change` in `resource/common/mechanic.ts`); price and the props it produces are computed by the same functions on both sides, the server's result is the one written.
-- A purchase writes ai-vehicles' `ai:props` bag; the server takes plate, engine / body health and dirt from the entity so a purchase never changes them.
+- A purchase writes ai-vehicles' `ai:props` bag and saves an owned vehicle with ai-vehicles' `SaveTuning` (the only caller: `SaveVehicle` keeps stored mods and neon); the server takes plate, engine / body health and dirt from the entity so a purchase never changes them. Repairs save only health through `SaveVehicle`.
 - Health, deformation and dirt can only be changed by the entity's owner client: the server sends `fix` to `NetworkGetEntityOwner`.
 - Job shops: on-duty members only (their points show only to them, `canShow` on the duty player data), paid from the job's `bank` shared account, except a car the member's own character owns in ai-vehicles: that one the member pays from the panel's accounts (`payerOf`). Every purchase and repair is logged with its payer and vehicle id. Public shops: the driver pays from the panel's accounts.
 - Repair kit: the vehicle is lib `nearestVehicleTo(source, 4)`; the progress is a lib `PendingActions` token. Kit item, job stash size and the blip looks (public shop, job shop, car wash) are panel settings; a renamed kit item is registered as usable on the settings change (the old name does nothing until a restart).

@@ -83,7 +83,7 @@ onClientCallback(
     propsState.set(vehicle, next);
     const id = ownedId(vehicle);
     if (id !== null)
-      optionalExport("ai-vehicles")?.SaveVehicle(id, { props: next });
+      optionalExport("ai-vehicles")?.SaveTuning(id, next);
     if (price > 0) notify(source, Locale("MECH_PAID", price), "success", 2500);
     aiLog("tuning", `bought ${change.kind}`, {
       source,

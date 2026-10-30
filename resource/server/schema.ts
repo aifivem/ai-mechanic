@@ -1,14 +1,12 @@
-import { PLACE_PED_SPEC, placePedFields } from "@aicore-fivem/lib/shared";
+import { PLACE_PED_SPEC, placePedFields, spec } from "@aicore-fivem/lib/shared";
 import type { PanelSchema } from "@aicore-fivem/shared";
 
-const int = (min: number, max: number) =>
-  ({ type: "number", min, max, integer: true }) as const;
 const blip = {
   type: "object",
   optional: true,
   fields: {
-    sprite: int(0, 1000),
-    color: int(0, 100),
+    sprite: spec.int(0, 1000),
+    color: spec.int(0, 100),
     scale: { type: "number", min: 0.3, max: 2 },
   },
 } as const;
@@ -30,18 +28,18 @@ export const mechanicSchema: PanelSchema = {
           pattern: "^[a-z0-9_]{2,32}$",
         },
         repairPoint: { type: "number", min: 0, max: 100 },
-        performance: int(0, 1_000_000),
-        turbo: int(0, 1_000_000),
-        xenon: int(0, 1_000_000),
-        cosmetic: int(0, 1_000_000),
-        wheels: int(0, 1_000_000),
-        paint: int(0, 1_000_000),
-        tint: int(0, 1_000_000),
-        plate: int(0, 1_000_000),
-        washPrice: int(0, 100_000),
-        washSeconds: int(1, 60),
-        kitEngine: int(100, 1000),
-        kitSeconds: int(1, 60),
+        performance: spec.int(0, 1_000_000),
+        turbo: spec.int(0, 1_000_000),
+        xenon: spec.int(0, 1_000_000),
+        cosmetic: spec.int(0, 1_000_000),
+        wheels: spec.int(0, 1_000_000),
+        paint: spec.int(0, 1_000_000),
+        tint: spec.int(0, 1_000_000),
+        plate: spec.int(0, 1_000_000),
+        washPrice: spec.int(0, 100_000),
+        washSeconds: spec.int(1, 60),
+        kitEngine: spec.int(100, 1000),
+        kitSeconds: spec.int(1, 60),
         kitItem: {
           type: "text",
           lookup: "item",
@@ -49,8 +47,8 @@ export const mechanicSchema: PanelSchema = {
           max: 48,
           optional: true,
         },
-        stashSlots: { ...int(1, 200), optional: true },
-        stashWeight: { ...int(1000, 10_000_000), optional: true },
+        stashSlots: { ...spec.int(1, 200), optional: true },
+        stashWeight: { ...spec.int(1000, 10_000_000), optional: true },
         shopBlip: blip,
         jobShopBlip: blip,
         washBlip: blip,

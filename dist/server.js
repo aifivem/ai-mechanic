@@ -287,6 +287,7 @@ const CORE = {
 	owned: "ai:owned",
 	id: "ai:vid",
 	props: "ai:props",
+	setup: "ai:setup",
 	fuel: "fuel"
 };
 // ../../../packages/lib/src/fivem/exports.ts

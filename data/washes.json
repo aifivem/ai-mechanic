@@ -1,4 +1,5 @@
 {
+  "$schema": "./schemas/washes.schema.json",
   "strawberry": {
     "label": "Strawberry Car Wash",
     "coords": {

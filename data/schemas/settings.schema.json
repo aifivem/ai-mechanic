@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-mechanic/data/settings.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This file's JSON Schema (for editors)."
+    },
+    "accounts": {
+      "description": "Accounts: Public shops and car washes take the money from the first account that has enough.",
+      "type": "array",
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 32,
+        "pattern": "^[a-z0-9_]{2,32}$"
+      }
+    },
+    "repairPoint": {
+      "description": "Repair per damage point: A wrecked vehicle has up to 2000 damage points (engine and body).",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "performance": {
+      "description": "Performance level: Engine, brakes, transmission, suspension and armor: level 1 costs this, level 2 twice this, and so on.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "turbo": {
+      "description": "Turbo",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "xenon": {
+      "description": "Xenon headlights",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "cosmetic": {
+      "description": "Body part: Every spoiler, bumper, hood and other part.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "wheels": {
+      "description": "Wheels",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "paint": {
+      "description": "Paint",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "tint": {
+      "description": "Window tint",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "plate": {
+      "description": "Plate style",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "washPrice": {
+      "description": "Price",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000
+    },
+    "washSeconds": {
+      "description": "Duration",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "kitEngine": {
+      "description": "Engine health after: 1000 is a new engine; below 300 it smokes, at 0 it stops.",
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 1000
+    },
+    "kitSeconds": {
+      "description": "Duration",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    }
+  },
+  "required": [
+    "accounts",
+    "repairPoint",
+    "performance",
+    "turbo",
+    "xenon",
+    "cosmetic",
+    "wheels",
+    "paint",
+    "tint",
+    "plate",
+    "washPrice",
+    "washSeconds",
+    "kitEngine",
+    "kitSeconds"
+  ]
+}

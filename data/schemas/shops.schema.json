@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-mechanic/data/shops.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This file's JSON Schema (for editors)."
+    }
+  },
+  "patternProperties": {
+    "^[a-z0-9_]{2,32}$": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "Name",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 48
+        },
+        "job": {
+          "description": "Job: Empty: a public shop, the driver pays.",
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 32
+        },
+        "coords": {
+          "description": "Place: The middle of the workshop floor.",
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          }
+        },
+        "radius": {
+          "description": "Area size: How far from the place a vehicle can be served.",
+          "type": "number",
+          "minimum": 2,
+          "maximum": 40
+        },
+        "blip": {
+          "description": "Show on the map",
+          "type": "boolean"
+        },
+        "repair": {
+          "description": "Repairs: Fixes engine and body; the price follows the damage.",
+          "type": "boolean"
+        },
+        "tuning": {
+          "description": "Tuning: Performance, body parts, wheels, paint, tint, plate and lights.",
+          "type": "boolean"
+        },
+        "multiplier": {
+          "description": "Price multiplier: Every price here is multiplied by this (1 = the prices in Settings).",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "stash": {
+          "description": "Stash: A shared stash for the job's members. Leave at 0, 0, 0 for none.",
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "z"
+          ],
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "z": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "required": [
+        "label",
+        "job",
+        "coords",
+        "radius",
+        "blip",
+        "repair",
+        "tuning",
+        "multiplier",
+        "stash"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

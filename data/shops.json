@@ -1,4 +1,5 @@
 {
+  "$schema": "./schemas/shops.schema.json",
   "bennys": {
     "label": "Benny's Motorworks",
     "job": "",

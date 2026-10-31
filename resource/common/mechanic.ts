@@ -96,9 +96,9 @@ export function readSettings(raw: unknown): Settings {
     kitItem: str(v.kitItem, "repairkit", 48),
     stashSlots: int(v.stashSlots, 50, 1, 200),
     stashWeight: int(v.stashWeight, 250_000, 1000, 10_000_000),
-    shopBlip: readBlip(v.shopBlip, { sprite: 72, color: 0, scale: 0.7 }),
-    jobShopBlip: readBlip(v.jobShopBlip, { sprite: 446, color: 0, scale: 0.7 }),
-    washBlip: readBlip(v.washBlip, { sprite: 100, color: 0, scale: 0.7 }),
+    shopBlip: readBlip(v.shopBlip, { sprite: 72, color: 46, scale: 0.6 }),
+    jobShopBlip: readBlip(v.jobShopBlip, { sprite: 72, color: 46, scale: 0.6 }),
+    washBlip: readBlip(v.washBlip, { sprite: 100, color: 37, scale: 0.75 }),
   };
 }
 

@@ -1512,18 +1512,18 @@ function readSettings(raw) {
 		stashWeight: int(v.stashWeight, 25e4, 1e3, 1e7),
 		shopBlip: readBlip(v.shopBlip, {
 			sprite: 72,
-			color: 0,
-			scale: .7
+			color: 46,
+			scale: .6
 		}),
 		jobShopBlip: readBlip(v.jobShopBlip, {
-			sprite: 446,
-			color: 0,
-			scale: .7
+			sprite: 72,
+			color: 46,
+			scale: .6
 		}),
 		washBlip: readBlip(v.washBlip, {
 			sprite: 100,
-			color: 0,
-			scale: .7
+			color: 37,
+			scale: .75
 		})
 	};
 }

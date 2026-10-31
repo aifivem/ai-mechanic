@@ -1,31 +1,12 @@
 {
   "$schema": "./schemas/shops.schema.json",
-  "bennys": {
-    "label": "Benny's Motorworks",
-    "job": "",
-    "coords": {
-      "x": -205.6,
-      "y": -1310.6,
-      "z": 31.3
-    },
-    "radius": 8,
-    "blip": true,
-    "repair": true,
-    "tuning": true,
-    "multiplier": 1.2,
-    "stash": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    }
-  },
   "lscustoms_burton": {
-    "label": "LS Customs Burton",
+    "label": "LS Customs",
     "job": "mechanic",
     "coords": {
-      "x": -337.38,
-      "y": -136.92,
-      "z": 39.01
+      "x": -324.11,
+      "y": -147.11,
+      "z": 39.1
     },
     "radius": 10,
     "blip": true,
@@ -33,36 +14,17 @@
     "tuning": true,
     "multiplier": 0.8,
     "stash": {
-      "x": -319.19,
-      "y": -131.9,
-      "z": 37.98
-    }
-  },
-  "lscustoms_airport": {
-    "label": "LS Customs Airport",
-    "job": "",
-    "coords": {
-      "x": -1155.5,
-      "y": -2007.2,
-      "z": 13.2
-    },
-    "radius": 8,
-    "blip": true,
-    "repair": true,
-    "tuning": true,
-    "multiplier": 1,
-    "stash": {
-      "x": 0,
-      "y": 0,
-      "z": 0
+      "x": -346.02,
+      "y": -130.68,
+      "z": 39.02
     }
   },
   "lscustoms_harmony": {
-    "label": "LS Customs Harmony",
+    "label": "LS Customs",
     "job": "",
     "coords": {
-      "x": 1174.8,
-      "y": 2640.2,
+      "x": 1181.29,
+      "y": 2634.69,
       "z": 37.8
     },
     "radius": 8,
@@ -71,18 +33,56 @@
     "tuning": true,
     "multiplier": 1,
     "stash": {
-      "x": 0,
-      "y": 0,
-      "z": 0
+      "x": 1175.11,
+      "y": 2635.375,
+      "z": 37.78
+    }
+  },
+  "lscustoms_airport": {
+    "label": "LS Customs",
+    "job": "",
+    "coords": {
+      "x": -1170.6,
+      "y": -2014.9,
+      "z": 13.23
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 1,
+    "stash": {
+      "x": -1146.4,
+      "y": -2002.05,
+      "z": 13.19
+    }
+  },
+  "bennys": {
+    "label": "Benny's Motorworks",
+    "job": "",
+    "coords": {
+      "x": -202.42,
+      "y": -1322.16,
+      "z": 31.29
+    },
+    "radius": 8,
+    "blip": true,
+    "repair": true,
+    "tuning": true,
+    "multiplier": 1.2,
+    "stash": {
+      "x": -199.58,
+      "y": -1314.65,
+      "z": 31.08
     }
   },
   "beekers_paleto": {
     "label": "Beeker's Garage",
     "job": "",
     "coords": {
-      "x": 110.8,
-      "y": 6626.4,
-      "z": 31.8
+      "x": 102.17,
+      "y": 6626.08,
+      "z": 31.79
     },
     "radius": 8,
     "blip": true,
@@ -90,9 +90,9 @@
     "tuning": false,
     "multiplier": 1,
     "stash": {
-      "x": 0,
-      "y": 0,
-      "z": 0
+      "x": 107,
+      "y": 6629.88,
+      "z": 31.81
     }
   }
 }

@@ -7,7 +7,7 @@
   "author": {
     "name": "TGIANN"
   },
-  "repository": "github:TGIANN/ai-mechanic",
+  "repository": "github:aifivem/ai-mechanic",
   "type": "module",
   "fxDependencies": [
     "/onesync",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/aifivem/ai-mechanic/compare/v0.2.0...v0.2.1) (2026-10-31)
+
+
+### Miscellaneous Chores
+
+* rebuild with the current lib ([8422fcf](https://github.com/aifivem/ai-mechanic/commit/8422fcfcd39dc447439cad5a356dda0d283bf133))
+
 ## [0.2.0](https://github.com/aifivem/ai-mechanic/compare/v0.1.0...v0.2.0) (2026-10-31)
 
 

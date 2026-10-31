@@ -1,6 +1,6 @@
 {
   "name": "ai-mechanic",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Mechanic shops: repair, tuning with live preview, car washes and the repair kit",
   "license": "GPL-3.0-only",

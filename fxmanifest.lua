@@ -1,6 +1,6 @@
 name 'ai-mechanic'
 author 'TGIANN'
-version '0.2.0' -- x-release-please-version
+version '0.2.1' -- x-release-please-version
 license 'GPL-3.0-only'
 description 'Mechanic shops: repair, tuning with live preview, car washes and the repair kit'
 repository 'https://github.com/aifivem/ai-mechanic'

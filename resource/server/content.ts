@@ -33,9 +33,9 @@ export function shopAt(
   return null;
 }
 
-/** Job shops serve that job's on-duty members only. */
+/** Job shops serve that job's on-duty members only (the client's `canShow` reads the same rule). */
 export const canUse = (source: number, shop: Shop) =>
-  !shop.job || online.dutyJob(source) === shop.job;
+  online.allows(source, shop.access);
 
 /** ai-vehicles' id of an owned vehicle (its changes are saved), or null. */
 export const ownedId = (vehicle: number): number | null =>

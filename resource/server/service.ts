@@ -10,25 +10,28 @@ import {
   progressFor,
   SourceLock,
 } from "@aicore-fivem/lib/server";
-import { fail, oneArg, readText } from "@aicore-fivem/lib/shared";
+import {
+  fail,
+  oneArg,
+  readText,
+  RecordObjects,
+} from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
-import { EVENTS } from "common/mechanic";
+import { EVENTS, readShop } from "common/mechanic";
 import { canUse, content, ownedId, panel } from "./content";
 
-/** Job shops' stashes (registered again when shops or the stash size change; ai-core keeps them for later inventories). */
+/**
+ * Job shops' stashes: an edited shop registers only its own again, a stash size change all of them (ai-core keeps
+ * them for later inventories; a stash has no unregister).
+ */
 const stashName = (shopId: string) => `mechanic_${shopId}`;
-function registerStashes(): void {
+const stashes = new RecordObjects(panel, "shops", readShop, (id, shop) => {
+  if (!shop.job || !shop.stash) return;
   const { stashSlots, stashWeight } = content.settings;
-  for (const shop of content.shops.values())
-    if (shop.job && shop.stash)
-      inventory.registerStash(
-        stashName(shop.id),
-        shop.label,
-        stashSlots,
-        stashWeight,
-        [shop.job],
-      );
-}
+  inventory.registerStash(stashName(id), shop.label, stashSlots, stashWeight, [
+    shop.job,
+  ]);
+});
 
 onClientCallback(
   EVENTS.stash,
@@ -104,9 +107,7 @@ function registerKit(): void {
 }
 
 registerKit();
-registerStashes();
-panel.onChange("shops", registerStashes);
 panel.onChange("settings", () => {
   registerKit();
-  registerStashes();
+  stashes.rebuildAll();
 });

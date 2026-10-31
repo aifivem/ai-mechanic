@@ -1,15 +1,15 @@
 import {
   AdminWorld,
+  allows,
   cache,
   callAction,
-  getPlayerData,
   notify,
-  onPlayerData,
+  onMembershipChange,
   onServerEvent,
   Points,
   progress,
 } from "@aicore-fivem/lib/client";
-import { readFinite, readId } from "@aicore-fivem/lib/shared";
+import { readFinite, readId, RecordObjects } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import {
   EVENTS,
@@ -22,66 +22,63 @@ import { Customs, FALLBACK } from "./customs";
 
 const world = new AdminWorld(["settings", "shops", "washes"]);
 const settings = world.view("settings", readSettings);
-const content = {
-  shops: world.records("shops", readShop),
-  washes: world.records("washes", readWash),
-};
 
 const driving = (): number | null =>
   cache.vehicle !== false && cache.seat === -1 ? cache.vehicle : null;
-/** Job shops and their stash show only to that job's on-duty members (the server checks again). */
-const onDutyFor = (shop: Shop) =>
-  !shop.job || getPlayerData("duty") === shop.job;
-
-/** Shop, stash and car wash points with their blips, built again when the panel changes them. */
+/** Shop, stash and car wash points with their blips, one record at a time. */
 const points = new Points();
-function rebuild(): void {
-  points.clear();
+const shops = new RecordObjects(world, "shops", readShop, (id, shop) => {
   const s = settings.value;
-  for (const shop of content.shops.values()) {
-    points.add(`shop:${shop.id}`, {
-      ped: shop.ped ?? undefined,
-      coords: shop.coords,
-      label: Locale("MECH_PROMPT_SHOP", shop.label),
-      icon: "screwdriver-wrench",
-      radius: shop.radius,
-      targetRadius: 2,
+  // Job shops and their stash show only to that job's on-duty members (the server checks the same rule).
+  const canShow = () => allows(shop.access);
+  points.add(`shop:${id}`, {
+    ped: shop.ped ?? undefined,
+    coords: shop.coords,
+    label: Locale("MECH_PROMPT_SHOP", shop.label),
+    icon: "screwdriver-wrench",
+    radius: shop.radius,
+    targetRadius: 2,
+    interval: 400,
+    canShow,
+    blip: shop.blip
+      ? { ...(shop.job ? s.jobShopBlip : s.shopBlip), label: shop.label }
+      : undefined,
+    onPressed: () => openShop(shop),
+  });
+  if (shop.job && shop.stash)
+    points.add(`stash:${id}`, {
+      coords: shop.stash,
+      label: Locale("MECH_PROMPT_STASH"),
+      icon: "box-open",
+      radius: 1.5,
       interval: 400,
-      canShow: () => onDutyFor(shop),
-      blip: shop.blip
-        ? { ...(shop.job ? s.jobShopBlip : s.shopBlip), label: shop.label }
-        : undefined,
-      onPressed: () => openShop(shop),
+      canShow,
+      onPressed: () => openStash(id),
     });
-    if (shop.job && shop.stash)
-      points.add(`stash:${shop.id}`, {
-        coords: shop.stash,
-        label: Locale("MECH_PROMPT_STASH"),
-        icon: "box-open",
-        radius: 1.5,
-        interval: 400,
-        canShow: () => onDutyFor(shop),
-        onPressed: () => openStash(shop.id),
-      });
-  }
-  for (const at of content.washes.values())
-    points.add(`wash:${at.id}`, {
-      coords: at.coords,
-      label: Locale("MECH_PROMPT_WASH", s.washPrice),
-      icon: "droplet",
-      radius: 7.5,
-      promptOnly: true,
-      interval: 400,
-      blip: { ...s.washBlip, label: at.label },
-      onPressed: () => wash(),
-    });
-}
-
-rebuild();
-world.onChange("settings", rebuild);
-world.onChange("shops", rebuild);
-world.onChange("washes", rebuild);
-onPlayerData("duty", () => points.refresh());
+  return () => {
+    points.remove(`shop:${id}`);
+    points.remove(`stash:${id}`);
+  };
+});
+const washes = new RecordObjects(world, "washes", readWash, (id, at) => {
+  points.add(`wash:${id}`, {
+    coords: at.coords,
+    label: Locale("MECH_PROMPT_WASH", settings.value.washPrice),
+    icon: "droplet",
+    radius: 7.5,
+    promptOnly: true,
+    interval: 400,
+    blip: { ...settings.value.washBlip, label: at.label },
+    onPressed: () => wash(),
+  });
+  return () => points.remove(`wash:${id}`);
+});
+// Blip looks and the wash price are settings every record reads.
+world.onChange("settings", () => {
+  shops.rebuildAll();
+  washes.rebuildAll();
+});
+onMembershipChange(() => points.refresh());
 
 async function openShop(shop: Shop): Promise<void> {
   const vehicle = driving();

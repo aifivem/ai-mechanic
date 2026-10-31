@@ -7,6 +7,7 @@ import {
   notify,
   onClientCallback,
   optionalExport,
+  plateOf,
   vehicleNearPlayer,
 } from "@aicore-fivem/lib/server";
 import {
@@ -75,7 +76,7 @@ onClientCallback(
       return fail("MECH_ERR_MONEY");
     const next = {
       ...applyChange(current, change),
-      plate: GetVehicleNumberPlateText(vehicle),
+      plate: plateOf(vehicle),
       engineHealth: GetVehicleEngineHealth(vehicle),
       bodyHealth: GetVehicleBodyHealth(vehicle),
       dirt: GetVehicleDirtLevel(vehicle),

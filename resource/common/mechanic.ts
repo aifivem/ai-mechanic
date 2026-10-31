@@ -1,4 +1,5 @@
 import {
+  type AccessRule,
   bool,
   int,
   num,
@@ -109,6 +110,8 @@ export interface Shop {
   label: string;
   /** Empty: anyone, paid by the driver; otherwise on-duty members of this job, paid from the job's account. */
   job: string;
+  /** Who may use it: everyone, or `job`'s on-duty members (lib `allows` / `online.allows`). */
+  access: AccessRule;
   coords: Point;
   radius: number;
   blip: boolean;
@@ -122,11 +125,13 @@ export interface Shop {
 /** One shop record (`panel.records` / `world.records`). */
 export function readShop(id: string, v: Record<string, unknown>): Shop {
   const stash = point(v.stash);
+  const job = str(v.job, "", 32);
   return {
     ped: readPlacePed(v.ped),
     id,
     label: str(v.label, id, 48),
-    job: str(v.job, "", 32),
+    job,
+    access: { jobs: job ? [job] : [], gangs: [], grades: {}, onDuty: true },
     coords: point(v.coords),
     radius: num(v.radius, 8),
     blip: bool(v.blip, true),

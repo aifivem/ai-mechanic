@@ -62,7 +62,7 @@ const oneArg = (read) => ([value]) => {
 }, fail = (error) => ({
 	ok: !1,
 	error
-}), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), BLIP_STYLE_FIELDS = {
+}), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), isPublic = (rule) => rule.jobs.length === 0 && rule.gangs.length === 0, BLIP_STYLE_FIELDS = {
 	sprite: {
 		type: "number",
 		min: 0,
@@ -137,6 +137,28 @@ var FileViews = class {
 		if (key === void 0) return this.reset(whole);
 		let parsed = isObject(value) ? this.readOne(key, value) : null;
 		parsed === null ? this.map.delete(key) : this.map.set(key, parsed);
+	}
+}, RecordObjects = class {
+	build;
+	records;
+	built = new Map();
+	constructor(source, file, readOne, build) {
+		this.build = build, this.records = source.records(file, readOne), source.onChange(file, (key) => key === void 0 ? this.rebuildAll() : this.rebuild(key)), this.rebuildAll();
+	}
+	rebuild(key) {
+		this.built.get(key)?.(), this.built.delete(key);
+		let record = this.records.get(key);
+		if (record === void 0) return;
+		let remove = this.build(key, record);
+		remove && this.built.set(key, remove);
+	}
+	rebuildAll() {
+		for (let remove of this.built.values()) remove();
+		this.built.clear();
+		for (let [key, record] of this.records) {
+			let remove = this.build(key, record);
+			remove && this.built.set(key, remove);
+		}
 	}
 };
 // ../../../packages/lib/src/shared/lang.ts
@@ -419,6 +441,7 @@ const CORE = {
 }, ADMIN = {
 	ace: "ai.admin",
 	openCallback: "ai-core:admin:open",
+	panelDataCallback: "ai-core:admin:panelData",
 	applyCallback: "ai-core:admin:apply",
 	closeEvent: "ai-core:admin:close",
 	showEvent: "ai-core:admin:show",
@@ -911,7 +934,7 @@ var AdminPanel = class {
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
+		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
 			count: 4,
 			windowMs: 1e4
 		} }), setImmediate(() => core$15.RegisterAdminPanel(this.resource));
@@ -940,6 +963,27 @@ var AdminPanel = class {
 			schema: this.schema,
 			texts: loadLocaleTexts(),
 			data: clone(Object.fromEntries(this.data))
+		};
+	}
+	summary() {
+		let data = {}, index = {};
+		for (let [file, spec] of Object.entries(this.schema.files)) {
+			let content = this.data.get(file);
+			if (spec.kind !== "records") {
+				data[file] = clone(content ?? {});
+				continue;
+			}
+			let labels = {};
+			for (let [key, record] of Object.entries(content ?? {})) labels[key] = labelOf(record, spec.labelPath) ?? key;
+			index[file] = labels;
+		}
+		return {
+			resource: this.resource,
+			schema: this.schema,
+			texts: loadLocaleTexts(),
+			data,
+			loaded: !1,
+			index
 		};
 	}
 	apply(admin, raw) {
@@ -1025,6 +1069,15 @@ var AdminPanel = class {
 		this.data.set(name, data), (filled || raw === null || !file.hasSchemaRef()) && file.write(data);
 	}
 };
+function labelOf(record, path) {
+	if (!path) return null;
+	let at = record;
+	for (let part of path.split(".")) {
+		if (typeof at != "object" || !at) return null;
+		at = at[part];
+	}
+	return typeof at == "string" && at !== "" ? at : null;
+}
 // ../../../packages/lib/src/server/log.ts
 function aiLog(channel, message, options) {
 	optionalExport("ai-core")?.Log(channel, message, options);
@@ -1155,6 +1208,20 @@ var OnlinePlayers = class {
 		let duty = this.dutyJob(source);
 		return duty !== null && jobs.includes(duty);
 	}
+	allows(source, rule) {
+		if (isPublic(rule)) return !0;
+		let min = (name) => rule.grades[name] ?? 0;
+		for (let gang of rule.gangs) {
+			let grade = this.gangGrade(source, gang);
+			if (grade !== null && grade >= min(gang)) return !0;
+		}
+		let duty = rule.onDuty ? this.dutyJob(source) : null;
+		for (let job of rule.jobs) {
+			let grade = this.jobGrade(source, job);
+			if (grade !== null && grade >= min(job) && (!rule.onDuty || duty === job)) return !0;
+		}
+		return !1;
+	}
 	countOnDuty(jobs) {
 		this.start();
 		let count = 0;
@@ -1275,6 +1342,8 @@ createLogger(resource), new class {
 		});
 	}
 }(), createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
+// ../../../packages/lib/src/fivem/byResource.ts
+const plateOf = (vehicle) => GetVehicleNumberPlateText(vehicle).trim().toUpperCase();
 let log = null;
 var ScheduledJob = class {
 	interval;
@@ -1528,12 +1597,18 @@ function readSettings(raw) {
 	};
 }
 function readShop(id, v) {
-	let stash = point(v.stash);
+	let stash = point(v.stash), job = str(v.job, "", 32);
 	return {
 		ped: readPlacePed(v.ped),
 		id,
 		label: str(v.label, id, 48),
-		job: str(v.job, "", 32),
+		job,
+		access: {
+			jobs: job ? [job] : [],
+			gangs: [],
+			grades: {},
+			onDuty: !0
+		},
 		coords: point(v.coords),
 		radius: num(v.radius, 8),
 		blip: bool(v.blip, !0),
@@ -2137,7 +2212,7 @@ function shopAt(source, feature) {
 	for (let shop of content.shops.values()) if (shop[feature] && distance(p, shop.coords) <= shop.radius + 2) return shop;
 	return null;
 }
-const canUse = (source, shop) => !shop.job || online.dutyJob(source) === shop.job, ownedId = (vehicle) => optionalExport("ai-vehicles")?.GetVehicleIdByEntity(vehicle) ?? null;
+const canUse = (source, shop) => online.allows(source, shop.access), ownedId = (vehicle) => optionalExport("ai-vehicles")?.GetVehicleIdByEntity(vehicle) ?? null;
 function ownsVehicle(source, vehicle) {
 	let id = ownedId(vehicle), owner = id === null ? null : optionalExport("ai-vehicles")?.GetVehicle(id)?.owner, charId = online.character(source)?.id;
 	return owner?.type === "character" && charId !== void 0 && owner.id === String(charId);
@@ -2149,11 +2224,11 @@ function pay(source, shop, payer, amount, reason) {
 	return amount <= 0 ? !0 : payer === "job" && shop?.job ? core.RemoveSharedMoney("job", shop.job, "bank", amount, reason) : content.settings.accounts.some((a) => core.RemoveMoney(source, a, amount, reason));
 }
 // resource/server/service.ts
-const stashName = (shopId) => `mechanic_${shopId}`;
-function registerStashes() {
+const stashName = (shopId) => `mechanic_${shopId}`, stashes = new RecordObjects(panel, "shops", readShop, (id, shop) => {
+	if (!shop.job || !shop.stash) return;
 	let { stashSlots, stashWeight } = content.settings;
-	for (let shop of content.shops.values()) shop.job && shop.stash && inventory.registerStash(stashName(shop.id), shop.label, stashSlots, stashWeight, [shop.job]);
-}
+	inventory.registerStash(stashName(id), shop.label, stashSlots, stashWeight, [shop.job]);
+});
 onClientCallback(EVENTS.stash, { args: oneArg((v) => readText(v, 64)) }, (source, id) => {
 	let shop = content.shops.get(id);
 	return !shop?.job || !shop.stash ? fail("MECH_ERR_FAR") : canUse(source, shop) ? isNear(source, shop.stash, 3) && inventory.openInventory(source, stashName(shop.id)) ? { ok: !0 } : fail("MECH_ERR_FAR") : fail("MECH_ERR_JOB");
@@ -2184,8 +2259,8 @@ function registerKit() {
 	let item = content.settings.kitItem;
 	kitItems.has(item) || (kitItems.add(item), inventory.registerUsableItem(item, (source) => item === content.settings.kitItem && useKit(source)));
 }
-registerKit(), registerStashes(), panel.onChange("shops", registerStashes), panel.onChange("settings", () => {
-	registerKit(), registerStashes();
+registerKit(), panel.onChange("settings", () => {
+	registerKit(), stashes.rebuildAll();
 });
 // resource/server/index.ts
 const propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? void 0);
@@ -2216,7 +2291,7 @@ onClientCallback(EVENTS.buy, {
 	if (!pay(source, shop, payer, price, `tuning:${shop.id}`)) return fail("MECH_ERR_MONEY");
 	let next = {
 		...applyChange(current, change),
-		plate: GetVehicleNumberPlateText(vehicle),
+		plate: plateOf(vehicle),
 		engineHealth: GetVehicleEngineHealth(vehicle),
 		bodyHealth: GetVehicleBodyHealth(vehicle),
 		dirt: GetVehicleDirtLevel(vehicle)

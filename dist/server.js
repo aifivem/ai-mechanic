@@ -409,6 +409,8 @@ const CORE = {
 	clientCancelProgressEvent: "ai-core:client:cancelProgress",
 	clientDefinitionsEvent: "ai-core:client:definitions",
 	vehicleTypeCallback: "ai-core:vehicleType",
+	progressForCallback: "ai-core:progressFor",
+	progressForCancelEvent: "ai-core:client:progressForCancel",
 	interactionStateKey: "ai:interaction",
 	charactersCallback: "ai-core:characters",
 	createCharacterCallback: "ai-core:createCharacter",
@@ -550,10 +552,25 @@ function onClientCallback(name, first, second) {
 	});
 }
 const pending = new Map();
+let nextId = 0;
 onNet(responseEvent(resource$1), (id, ok, result) => {
 	let entry = typeof id == "number" ? pending.get(id) : void 0;
 	entry && entry.source === Number(globalThis.source) && (pending.delete(id), clearTimeout(entry.timer), ok === !0 ? entry.resolve(result) : entry.reject(Error("client callback failed")));
 });
+function triggerClientCallback(name, source, args = [], timeoutMs = 3e4) {
+	let id = ++nextId;
+	return new Promise((resolve, reject) => {
+		let timer = setTimeout(() => {
+			pending.delete(id), reject(Error(`client callback ${name} timed out for ${source}`));
+		}, timeoutMs);
+		pending.set(id, {
+			source,
+			resolve,
+			reject,
+			timer
+		}), emitNet(requestEvent(name), source, resource$1, id, ...args);
+	});
+}
 // ../../../packages/lib/src/server/admin/patch.ts
 function toPatch(value) {
 	if (!isRecord(value) || typeof value.file != "string") return null;
@@ -1209,35 +1226,24 @@ var PlayerMap = class extends Map {
 	clear(source) {
 		this.until.delete(source);
 	}
-}, PendingActions = class {
-	actions = new PlayerMap();
-	minRatio;
-	next = 0;
-	constructor(options = {}) {
-		this.minRatio = options.minRatio ?? .8, on(CORE.playerUnloadedEvent, (source) => this.actions.delete(source));
-	}
-	start(source, data, durationMs) {
-		return this.next = this.next >= 2147483647 ? 1 : this.next + 1, this.actions.set(source, {
-			token: this.next,
-			data,
-			startedAt: GetGameTimer(),
-			durationMs
-		}), this.next;
-	}
-	take(source, token) {
-		let action = this.actions.get(source);
-		return !action || action.token !== token ? null : (this.actions.delete(source), GetGameTimer() - action.startedAt >= action.durationMs * this.minRatio ? action.data : null);
-	}
-	peek(source) {
-		return this.actions.get(source)?.data ?? null;
-	}
-	cancel(source) {
-		this.actions.delete(source);
-	}
-	get size() {
-		return this.actions.size;
-	}
 };
+// ../../../packages/lib/src/server/progressFor.ts
+const running = new PlayerMap({ onDrop: (_source, settle) => settle(!1) });
+on(CORE.playerUnloadedEvent, (source) => {
+	let settle = running.get(source);
+	settle && settle(!1);
+});
+function progressFor(source, options) {
+	let previous = running.get(source);
+	previous && (previous(!1), emitNet(CORE.progressForCancelEvent, source));
+	let { minRatio = .8, ...bar } = options, startedAt = GetGameTimer();
+	return new Promise((resolve) => {
+		let done = !1, settle = (ok) => {
+			done || (done = !0, running.get(source) === settle && running.delete(source), resolve(ok));
+		};
+		running.set(source, settle), triggerClientCallback(CORE.progressForCallback, source, [bar], bar.duration + 15e3).then((answer) => settle(answer === !0 && GetGameTimer() - startedAt >= bar.duration * minRatio), () => settle(!1));
+	});
+}
 // ../../../packages/lib/src/server/command.ts
 const resource = GetCurrentResourceName();
 createLogger(resource), new class {
@@ -1465,8 +1471,6 @@ const EVENTS = {
 	repair: "ai-mechanic:repair",
 	stash: "ai-mechanic:stash",
 	wash: "ai-mechanic:wash",
-	kitFinish: "ai-mechanic:kitFinish",
-	kitStart: "ai-mechanic:client:kitStart",
 	fix: "ai-mechanic:client:fix"
 }, point = (v) => {
 	let p = record(v);
@@ -2151,26 +2155,27 @@ onClientCallback(EVENTS.stash, { args: oneArg((v) => readText(v, 64)) }, (source
 	let shop = content.shops.get(id);
 	return !shop?.job || !shop.stash ? fail("MECH_ERR_FAR") : canUse(source, shop) ? isNear(source, shop.stash, 3) && inventory.openInventory(source, stashName(shop.id)) ? { ok: !0 } : fail("MECH_ERR_FAR") : fail("MECH_ERR_JOB");
 });
-const kits = new PendingActions();
-function useKit(source) {
-	if (GetVehiclePedIsIn(GetPlayerPed(String(source)), !1)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
-	let vehicle = nearestVehicleTo(source, 4);
-	if (!vehicle) return notify(source, Locale("MECH_KIT_NO_VEHICLE"), "warning"), !1;
-	if (GetVehicleEngineHealth(vehicle) >= content.settings.kitEngine) return notify(source, Locale("MECH_KIT_NOT_NEEDED"), "info"), !1;
-	let seconds = content.settings.kitSeconds;
-	return emitNet(EVENTS.kitStart, source, kits.start(source, vehicle, seconds * 1e3), seconds, NetworkGetNetworkIdFromEntity(vehicle)), !1;
-}
-onClientCallback(EVENTS.kitFinish, {
-	args: oneArg(readId),
-	lock: !0
-}, (source, token) => {
-	let vehicle = kits.take(source, token);
-	if (vehicle === null || !DoesEntityExist(vehicle) || !isNear(source, entityCoords(vehicle), 5) || !inventory.removeItem(source, content.settings.kitItem, 1)) return fail("MECH_ERR_FAR");
+const repairing = new SourceLock();
+async function repair(source, vehicle) {
+	if (!await progressFor(source, {
+		label: Locale("MECH_KIT_WORKING"),
+		duration: content.settings.kitSeconds * 1e3,
+		anim: {
+			dict: "mini@repair",
+			clip: "fixing_a_ped"
+		},
+		face: entityCoords(vehicle)
+	}) || !DoesEntityExist(vehicle) || !isNear(source, entityCoords(vehicle), 5) || !inventory.removeItem(source, content.settings.kitItem, 1)) return;
 	let engine = content.settings.kitEngine, owner = NetworkGetEntityOwner(vehicle);
 	owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), engine);
 	let id = ownedId(vehicle);
-	return id !== null && optionalExport("ai-vehicles")?.SaveVehicle(id, { engine }), notify(source, Locale("MECH_KIT_DONE"), "success"), aiLog("repairs", "repair kit", { source }), { ok: !0 };
-});
+	id !== null && optionalExport("ai-vehicles")?.SaveVehicle(id, { engine }), notify(source, Locale("MECH_KIT_DONE"), "success"), aiLog("repairs", "repair kit", { source });
+}
+function useKit(source) {
+	if (GetVehiclePedIsIn(GetPlayerPed(String(source)), !1)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
+	let vehicle = nearestVehicleTo(source, 4);
+	return vehicle ? GetVehicleEngineHealth(vehicle) >= content.settings.kitEngine ? (notify(source, Locale("MECH_KIT_NOT_NEEDED"), "info"), !1) : (repairing.run(source, void 0, () => repair(source, vehicle)), !1) : (notify(source, Locale("MECH_KIT_NO_VEHICLE"), "warning"), !1);
+}
 const kitItems = new Set();
 function registerKit() {
 	let item = content.settings.kitItem;

@@ -134,25 +134,3 @@ onServerEvent(
     }
   },
 );
-
-onServerEvent(
-  EVENTS.kitStart,
-  {
-    args: ([token, seconds, netId]): [number, number, number] | null => {
-      const t = readId(token);
-      const s = readFinite(seconds);
-      const id = readId(netId);
-      return t !== null && s !== null && id !== null ? [t, s, id] : null;
-    },
-  },
-  async (token, seconds, netId) => {
-    if (NetworkDoesEntityExistWithNetworkId(netId))
-      TaskTurnPedToFaceEntity(cache.ped, NetToVeh(netId), 1000);
-    const done = await progress({
-      label: Locale("MECH_KIT_WORKING"),
-      duration: seconds * 1000,
-      anim: { dict: "mini@repair", clip: "fixing_a_ped" },
-    });
-    if (done) await callAction(EVENTS.kitFinish, [token], FALLBACK);
-  },
-);

@@ -21,10 +21,6 @@ export const EVENTS = {
   stash: "ai-mechanic:stash",
   /** Callback: (netId) -> { ok } washes the vehicle at a car wash. */
   wash: "ai-mechanic:wash",
-  /** Callback: (token) -> { ok } the repair kit's progress ran out. */
-  kitFinish: "ai-mechanic:kitFinish",
-  /** Server -> player: (token, seconds, netId) run the repair kit's progress. */
-  kitStart: "ai-mechanic:client:kitStart",
   /** Server -> entity owner: (netId, engine | null) fix the body (engine null) or set the engine health; (netId, -1) wash. */
   fix: "ai-mechanic:client:fix",
 } as const;
@@ -70,7 +66,11 @@ export interface BlipStyle {
 
 function readBlip(raw: unknown, fallback: BlipStyle): BlipStyle {
   const v = record(raw);
-  return readBlipStyle(v, { sprite: fallback.sprite, color: fallback.color, scale: fallback.scale });
+  return readBlipStyle(v, {
+    sprite: fallback.sprite,
+    color: fallback.color,
+    scale: fallback.scale,
+  });
 }
 
 export function readSettings(raw: unknown): Settings {

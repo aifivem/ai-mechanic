@@ -191,6 +191,18 @@
         "color",
         "scale"
       ]
+    },
+    "billMin": {
+      "description": "Smallest bill: The least a mechanic can ask for in one bill.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000
+    },
+    "billMax": {
+      "description": "Largest bill: The most a mechanic can ask for in one bill.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000
     }
   },
   "required": [

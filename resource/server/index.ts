@@ -28,6 +28,7 @@ import {
   type Change,
 } from "common/mechanic";
 import { canUse, content, ownedId, pay, payerOf, shopAt } from "./content";
+import "./bills";
 import "./service";
 
 const propsState = new EntityState(

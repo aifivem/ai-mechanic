@@ -5,12 +5,20 @@ import {
   optionalExport,
   resourceExport,
 } from "@aicore-fivem/lib/server";
-import { distance } from "@aicore-fivem/lib/shared";
+import { distance, record } from "@aicore-fivem/lib/shared";
 import { readSettings, readShop, readWash, type Shop } from "common/mechanic";
 import { mechanicSchema } from "./schema";
 
 export const core = resourceExport("ai-core");
 export const panel = new AdminPanel(mechanicSchema);
+panel.rule("settings", (_key, next) => {
+  const v = record(next);
+  return typeof v.billMin === "number" &&
+    typeof v.billMax === "number" &&
+    v.billMin > v.billMax
+    ? "ADMIN_ERR_BILL_RANGE"
+    : null;
+});
 const settings = panel.view("settings", readSettings);
 /** Panel content, kept current by the panel's views. */
 export const content = {

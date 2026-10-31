@@ -23,6 +23,8 @@ export const EVENTS = {
   stash: "ai-mechanic:stash",
   /** Callback: (netId) -> { ok } washes the vehicle at a car wash. */
   wash: "ai-mechanic:wash",
+  /** Callback: (target, amount, reason) -> { ok } an on-duty mechanic bills the player next to them from the job. */
+  bill: "ai-mechanic:bill",
   /** Server -> entity owner: (netId, engine | null) fix the body (engine null) or set the engine health; (netId, -1) wash. */
   fix: "ai-mechanic:client:fix",
 } as const;
@@ -58,6 +60,9 @@ export interface Settings {
   shopBlip: BlipStyle;
   jobShopBlip: BlipStyle;
   washBlip: BlipStyle;
+  /** What one customer bill may ask for. */
+  billMin: number;
+  billMax: number;
 }
 
 export interface BlipStyle {
@@ -100,6 +105,8 @@ export function readSettings(raw: unknown): Settings {
       color: 37,
       scale: 0.75,
     }),
+    billMin: int(v.billMin, 1, 1, 10_000_000),
+    billMax: int(v.billMax, 50_000, 1, 10_000_000),
   };
 }
 
@@ -141,6 +148,18 @@ export function readShop(id: string, v: Record<string, unknown>): Shop {
     stash: stash.x === 0 && stash.y === 0 ? null : stash,
   };
 }
+
+/** The jobs that run a job shop: their on-duty members are mechanics (customer bills). */
+export function mechanicJobs(shops: Iterable<Shop>): string[] {
+  const jobs = new Set<string>();
+  for (const shop of shops) if (shop.job) jobs.add(shop.job);
+  return [...jobs];
+}
+
+/** How close the customer stands to the mechanic for a bill (the server allows 2 m more for movement). */
+export const BILL_METRES = 3;
+/** Longest bill reason. */
+export const BILL_REASON_MAX = 48;
 
 export interface Wash {
   id: string;

@@ -11,6 +11,7 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 - Car wash: a lib `progressFor` in the `wash` callback (bar in the vehicle); the price is taken and the dirt removed after it, when the player still drives the dirty vehicle at a wash.
 - Repair kit: the vehicle is lib `nearestVehicleTo(source, 4)`; the work is a lib `progressFor` (server-timed bar facing the vehicle, one kit at a time per player); the kit is spent after it, if the player is still within 5 m. Kit item, job stash size and the blip looks (public shop, job shop, car wash) are panel settings; a renamed kit item is registered as usable on the settings change (the old name does nothing until a restart).
 - The menu previews with lib `menu(request, onHover)`; closing a list re-applies the last bought props.
+- Customer bills: a mechanic is an on-duty member of a job that runs a job shop (`mechanicJobs(shops)`, same rule on both sides). The radial item (`canShow` on that duty, `radial.refresh()` on membership changes) picks lib `nearestPlayer(BILL_METRES)`, asks amount and reason with lib `input` (limits `billMin` / `billMax`, panel rule min <= max) and the server sends lib `billing.send` from the mechanic's duty job after checking duty, target, distance (+2 m) and limits (rate 3 per 10 s); the job's account is paid when the customer pays, never a direct take. Log channel `bills`.
 
 ## Contracts
 
@@ -23,4 +24,4 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 
 ## Entry points
 
-- Purchases, repairs, car washes `resource/server/index.ts`; repair kit and stashes `resource/server/service.ts`; customs menus `resource/client/customs.ts`; shop, stash and wash points (lib `RecordObjects` + `Points`: an edited shop or wash rebuilds only its points, a settings change all) and owner fixes `resource/client/index.ts`; job shop stashes are registered per shop record the same way on the server (`RecordObjects` on the `AdminPanel`).
+- Purchases, repairs, car washes `resource/server/index.ts`; customer bills `resource/server/bills.ts` (radial item and input in `resource/client/index.ts`); repair kit and stashes `resource/server/service.ts`; customs menus `resource/client/customs.ts`; shop, stash and wash points (lib `RecordObjects` + `Points`: an edited shop or wash rebuilds only its points, a settings change all) and owner fixes `resource/client/index.ts`; job shop stashes are registered per shop record the same way on the server (`RecordObjects` on the `AdminPanel`).

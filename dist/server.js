@@ -541,8 +541,8 @@ function isNear(source, point, metres) {
 	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source))), dx = x - point.x, dy = y - point.y, dz = z - point.z;
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
 }
-resourceExport(CORE.resource);
-const log$6 = createLogger(GetCurrentResourceName()), gates = new Set();
+// ../../../packages/lib/src/server/gate.ts
+const core$26 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$26.GetCharacter(source) !== null || "no character loaded", gates = new Set();
 on("playerDropped", () => {
 	let source = Number(globalThis.source);
 	for (let gate of gates) gate.release(source);
@@ -1565,7 +1565,15 @@ var Mirror = class {
 		DoesEntityExist(entity) && (Entity(entity).state.set(this.key, value ?? null, !0), this.put(entity, value));
 	}
 };
-resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+// ../../../packages/lib/src/server/billing.ts
+const core$10 = resourceExport(CORE.resource), billing = {
+	send: (bill) => core$10.SendBill(bill),
+	unpaid: (source) => new Promise((resolve) => core$10.GetUnpaidBills(source, resolve)),
+	pay: (source, id) => core$10.PayBill(source, id),
+	provider: () => core$10.GetBillingSystem()
+};
+resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // resource/common/locale.ts
 const Locale = createLocale();
 GetCurrentResourceName(), IsDuplicityVersion();
@@ -1575,6 +1583,7 @@ const EVENTS = {
 	repair: "ai-mechanic:repair",
 	stash: "ai-mechanic:stash",
 	wash: "ai-mechanic:wash",
+	bill: "ai-mechanic:bill",
 	fix: "ai-mechanic:client:fix"
 }, point = (v) => {
 	let p = record(v);
@@ -1618,7 +1627,9 @@ function readSettings(raw) {
 			sprite: 100,
 			color: 37,
 			scale: .75
-		})
+		}),
+		billMin: int(v.billMin, 1, 1, 1e7),
+		billMax: int(v.billMax, 5e4, 1, 1e7)
 	};
 }
 function readShop(id, v) {
@@ -1640,6 +1651,11 @@ function readShop(id, v) {
 		multiplier: num(v.multiplier, 1),
 		stash: stash.x === 0 && stash.y === 0 ? null : stash
 	};
+}
+function mechanicJobs(shops) {
+	let jobs = new Set();
+	for (let shop of shops) shop.job && jobs.add(shop.job);
+	return [...jobs];
 }
 function readWash(id, v) {
 	return {
@@ -1829,7 +1845,15 @@ const blip = {
 				},
 				shopBlip: blip,
 				jobShopBlip: blip,
-				washBlip: blip
+				washBlip: blip,
+				billMin: {
+					...spec.int(1, 1e7),
+					optional: !0
+				},
+				billMax: {
+					...spec.int(1, 1e7),
+					optional: !0
+				}
 			}
 		},
 		shops: {
@@ -2180,6 +2204,28 @@ const blip = {
 					]
 				},
 				{
+					icon: "file-invoice-dollar",
+					title: "ADMIN_C_BILLS",
+					desc: "ADMIN_C_BILLS_DESC",
+					fields: [{
+						widget: "number",
+						path: "billMin",
+						label: "ADMIN_F_BILL_MIN",
+						hint: "ADMIN_H_BILL_MIN",
+						min: 1,
+						max: 1e7,
+						unit: "$"
+					}, {
+						widget: "number",
+						path: "billMax",
+						label: "ADMIN_F_BILL_MAX",
+						hint: "ADMIN_H_BILL_MAX",
+						min: 1,
+						max: 1e7,
+						unit: "$"
+					}]
+				},
+				{
 					icon: "box-open",
 					title: "ADMIN_C_STASH",
 					desc: "ADMIN_C_STASH_DESC",
@@ -2223,7 +2269,12 @@ const blip = {
 			]
 		}
 	]
-}, core = resourceExport("ai-core"), panel = new AdminPanel(mechanicSchema), settings = panel.view("settings", readSettings), content = {
+}, core = resourceExport("ai-core"), panel = new AdminPanel(mechanicSchema);
+panel.rule("settings", (_key, next) => {
+	let v = record(next);
+	return typeof v.billMin == "number" && typeof v.billMax == "number" && v.billMin > v.billMax ? "ADMIN_ERR_BILL_RANGE" : null;
+});
+const settings = panel.view("settings", readSettings), content = {
 	get settings() {
 		return settings.value;
 	},
@@ -2246,6 +2297,49 @@ function payerOf(source, shop, vehicle) {
 function pay(source, shop, payer, amount, reason) {
 	return amount <= 0 ? !0 : payer === "job" && shop?.job ? core.RemoveSharedMoney("job", shop.job, "bank", amount, reason) : content.settings.accounts.some((a) => core.RemoveMoney(source, a, amount, reason));
 }
+// resource/server/bills.ts
+aiLogChannels({ bills: {} });
+function mechanicJobOf(source) {
+	let duty = online.dutyJob(source);
+	return duty !== null && mechanicJobs(content.shops.values()).includes(duty) ? duty : null;
+}
+onClientCallback(EVENTS.bill, {
+	args: ([to, amount, reason]) => {
+		let target = readId(to), value = readInt(amount, 1, 1e7), text = readText(reason, 48);
+		return target !== null && value !== null && text ? [
+			target,
+			value,
+			text
+		] : null;
+	},
+	guards: [hasCharacter()],
+	rate: {
+		count: 3,
+		windowMs: 1e4
+	},
+	lock: !0
+}, (source, target, amount, reason) => {
+	let job = mechanicJobOf(source);
+	if (!job) return fail("MECH_ERR_BILL_JOB");
+	if (target === source || !online.character(target)) return fail("MECH_ERR_BILL_TARGET");
+	if (!isNear(source, coordsOf(target), 5)) return fail("MECH_ERR_BILL_FAR");
+	let { billMin, billMax } = content.settings;
+	return amount < billMin || amount > billMax ? fail("MECH_ERR_BILL_AMOUNT") : billing.send({
+		to: target,
+		amount,
+		label: reason,
+		from: source,
+		job
+	}) ? (aiLog("bills", "billed a customer", {
+		source,
+		target,
+		metadata: {
+			job,
+			amount,
+			reason
+		}
+	}), { ok: !0 }) : fail("MECH_ERR_BILL");
+});
 // resource/server/service.ts
 const stashName = (shopId) => `mechanic_${shopId}`, stashes = new RecordObjects(panel, "shops", readShop, (id, shop) => {
 	if (!shop.job || !shop.stash) return;

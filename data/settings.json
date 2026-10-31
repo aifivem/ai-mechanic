@@ -16,5 +16,7 @@
   "washPrice": 20,
   "washSeconds": 6,
   "kitEngine": 750,
-  "kitSeconds": 10
+  "kitSeconds": 10,
+  "billMin": 1,
+  "billMax": 50000
 }

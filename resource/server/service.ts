@@ -9,6 +9,7 @@ import {
   optionalExport,
   progressFor,
   SourceLock,
+  vehicleOf,
 } from "@aicore-fivem/lib/server";
 import {
   fail,
@@ -77,7 +78,7 @@ async function repair(source: number, vehicle: number): Promise<void> {
 
 /** The repair kit: on foot next to a vehicle, brings its engine up to the panel's value. */
 function useKit(source: number): boolean {
-  if (GetVehiclePedIsIn(GetPlayerPed(String(source)), false)) {
+  if (vehicleOf(source)) {
     notify(source, Locale("MECH_KIT_OUTSIDE"), "warning");
     return false;
   }

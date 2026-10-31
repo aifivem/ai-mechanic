@@ -1,13 +1,13 @@
 import {
   AdminWorld,
   allows,
-  cache,
   callAction,
+  drivenVehicle,
+  entityFromNetId,
   notify,
   onMembershipChange,
   onServerEvent,
   Points,
-  progress,
 } from "@aicore-fivem/lib/client";
 import { readFinite, readId, RecordObjects } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
@@ -23,8 +23,6 @@ import { Customs, FALLBACK } from "./customs";
 const world = new AdminWorld(["settings", "shops", "washes"]);
 const settings = world.view("settings", readSettings);
 
-const driving = (): number | null =>
-  cache.vehicle !== false && cache.seat === -1 ? cache.vehicle : null;
 /** Shop, stash and car wash points with their blips, one record at a time. */
 const points = new Points();
 const shops = new RecordObjects(world, "shops", readShop, (id, shop) => {
@@ -81,19 +79,18 @@ world.onChange("settings", () => {
 onMembershipChange(() => points.refresh());
 
 async function openShop(shop: Shop): Promise<void> {
-  const vehicle = driving();
-  if (vehicle === null) return notify(Locale("MECH_ERR_DRIVER"), "warning");
+  const vehicle = drivenVehicle();
+  if (vehicle === false) return notify(Locale("MECH_ERR_DRIVER"), "warning");
   await new Customs(vehicle, shop, settings.value).run();
 }
 
 async function wash(): Promise<void> {
-  const vehicle = driving();
-  if (vehicle === null) return notify(Locale("MECH_ERR_DRIVER"), "warning");
-  if (!(await callAction(EVENTS.wash, [VehToNet(vehicle)], FALLBACK))) return;
-  await progress({
-    label: Locale("MECH_WASHING"),
-    duration: settings.value.washSeconds * 1000,
-    allowVehicle: true,
+  const vehicle = drivenVehicle();
+  if (vehicle === false) return notify(Locale("MECH_ERR_DRIVER"), "warning");
+  // The server runs the progress bar, then charges and washes.
+  await callAction(EVENTS.wash, [VehToNet(vehicle)], {
+    ...FALLBACK,
+    timeout: settings.value.washSeconds * 1000 + 30_000,
   });
 }
 
@@ -114,8 +111,8 @@ onServerEvent(
     },
   },
   (netId, engine) => {
-    if (!NetworkDoesEntityExistWithNetworkId(netId)) return;
-    const vehicle = NetToVeh(netId);
+    const vehicle = entityFromNetId(netId, 2);
+    if (!vehicle) return;
     if (engine === -1) {
       SetVehicleDirtLevel(vehicle, 0);
       WashDecalsFromVehicle(vehicle, 1.0);

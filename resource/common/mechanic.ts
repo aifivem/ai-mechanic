@@ -4,6 +4,7 @@ import {
   int,
   num,
   type PlacePed,
+  readAccess,
   readBlipStyle,
   readPlacePed,
   record,
@@ -65,15 +66,6 @@ export interface BlipStyle {
   scale: number;
 }
 
-function readBlip(raw: unknown, fallback: BlipStyle): BlipStyle {
-  const v = record(raw);
-  return readBlipStyle(v, {
-    sprite: fallback.sprite,
-    color: fallback.color,
-    scale: fallback.scale,
-  });
-}
-
 export function readSettings(raw: unknown): Settings {
   const v = record(raw);
   const accounts = Array.isArray(v.accounts)
@@ -97,9 +89,17 @@ export function readSettings(raw: unknown): Settings {
     kitItem: str(v.kitItem, "repairkit", 48),
     stashSlots: int(v.stashSlots, 50, 1, 200),
     stashWeight: int(v.stashWeight, 250_000, 1000, 10_000_000),
-    shopBlip: readBlip(v.shopBlip, { sprite: 72, color: 46, scale: 0.6 }),
-    jobShopBlip: readBlip(v.jobShopBlip, { sprite: 72, color: 46, scale: 0.6 }),
-    washBlip: readBlip(v.washBlip, { sprite: 100, color: 37, scale: 0.75 }),
+    shopBlip: readBlipStyle(v.shopBlip, { sprite: 72, color: 46, scale: 0.6 }),
+    jobShopBlip: readBlipStyle(v.jobShopBlip, {
+      sprite: 72,
+      color: 46,
+      scale: 0.6,
+    }),
+    washBlip: readBlipStyle(v.washBlip, {
+      sprite: 100,
+      color: 37,
+      scale: 0.75,
+    }),
   };
 }
 
@@ -131,7 +131,7 @@ export function readShop(id: string, v: Record<string, unknown>): Shop {
     id,
     label: str(v.label, id, 48),
     job,
-    access: { jobs: job ? [job] : [], gangs: [], grades: {}, onDuty: true },
+    access: readAccess({ jobs: job ? [job] : [], onDuty: true }),
     coords: point(v.coords),
     radius: num(v.radius, 8),
     blip: bool(v.blip, true),

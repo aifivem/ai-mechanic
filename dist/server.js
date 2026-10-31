@@ -62,7 +62,18 @@ const oneArg = (read) => ([value]) => {
 }, fail = (error) => ({
 	ok: !1,
 	error
-}), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), isPublic = (rule) => rule.jobs.length === 0 && rule.gangs.length === 0, BLIP_STYLE_FIELDS = {
+}), distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z), names = (v) => Array.isArray(v) ? v.filter((x) => typeof x == "string") : [];
+function readAccess(value) {
+	let v = record(value), grades = {};
+	for (let [name, grade] of Object.entries(record(v.grades))) typeof grade == "number" && Number.isInteger(grade) && grade >= 0 && (grades[name] = grade);
+	return {
+		jobs: names(v.jobs),
+		gangs: names(v.gangs),
+		grades,
+		onDuty: bool(v.onDuty, !1)
+	};
+}
+const isPublic = (rule) => rule.jobs.length === 0 && rule.gangs.length === 0, BLIP_STYLE_FIELDS = {
 	sprite: {
 		type: "number",
 		min: 0,
@@ -431,6 +442,8 @@ const CORE = {
 	vehicleTypeCallback: "ai-core:vehicleType",
 	interactionStateKey: "ai:interaction",
 	pvpStateKey: "ai:pvp",
+	medicalStateKey: "ai:medical",
+	clientDeadEvent: "ai-core:client:dead",
 	charactersCallback: "ai-core:characters",
 	createCharacterCallback: "ai-core:createCharacter",
 	deleteCharacterCallback: "ai-core:deleteCharacter",
@@ -512,6 +525,10 @@ function entityCoords(entity) {
 	};
 }
 const coordsOf = (source) => entityCoords(GetPlayerPed(String(source)));
+function vehicleOf(source, options = {}) {
+	let ped = GetPlayerPed(String(source)), vehicle = GetVehiclePedIsIn(ped, !1);
+	return !vehicle || !options.driver || GetPedInVehicleSeat(vehicle, -1) === ped ? vehicle : 0;
+}
 function isNear(source, point, metres) {
 	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source))), dx = x - point.x, dy = y - point.y, dz = z - point.z;
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
@@ -1183,6 +1200,9 @@ var OnlinePlayers = class {
 	character(source) {
 		return this.start(), this.players.get(source)?.character ?? null;
 	}
+	charId(source) {
+		return this.start(), this.players.get(source)?.character.id;
+	}
 	name(source, options = {}) {
 		let c = this.character(source);
 		return c ? `${c.firstname} ${c.lastname}` : options.fallback === !1 ? "" : GetPlayerName(String(source));
@@ -1272,7 +1292,8 @@ function onDropped(fn) {
 		for (let handler of dropped) handler(source);
 	})), dropped.add(fn);
 }
-var PlayerMap = class extends Map {
+// ../../../packages/lib/src/server/progressFor.ts
+const running = new class extends Map {
 	constructor(options = {}) {
 		super(), onDropped((source) => {
 			if (!this.has(source)) return;
@@ -1280,29 +1301,7 @@ var PlayerMap = class extends Map {
 			this.delete(source), options.onDrop?.(source, value);
 		});
 	}
-}, Cooldowns = class {
-	until = new PlayerMap();
-	ready(source) {
-		return this.left(source) === 0;
-	}
-	start(source, ms) {
-		this.until.set(source, GetGameTimer() + ms);
-	}
-	take(source, ms) {
-		return this.ready(source) ? (this.start(source, ms), !0) : !1;
-	}
-	left(source) {
-		let until = this.until.get(source);
-		if (until === void 0) return 0;
-		let left = until - GetGameTimer();
-		return left > 0 ? left : (this.until.delete(source), 0);
-	}
-	clear(source) {
-		this.until.delete(source);
-	}
-};
-// ../../../packages/lib/src/server/progressFor.ts
-const running = new PlayerMap({ onDrop: (_source, settle) => settle(!1) });
+}({ onDrop: (_source, settle) => settle(!1) });
 on(CORE.playerUnloadedEvent, (source) => {
 	let settle = running.get(source);
 	settle && settle(!1);
@@ -1575,13 +1574,6 @@ const EVENTS = {
 		z: num(p.z, 0)
 	};
 };
-function readBlip(raw, fallback) {
-	return readBlipStyle(record(raw), {
-		sprite: fallback.sprite,
-		color: fallback.color,
-		scale: fallback.scale
-	});
-}
 function readSettings(raw) {
 	let v = record(raw), accounts = Array.isArray(v.accounts) ? v.accounts.filter((a) => typeof a == "string") : [];
 	return {
@@ -1602,17 +1594,17 @@ function readSettings(raw) {
 		kitItem: str(v.kitItem, "repairkit", 48),
 		stashSlots: int(v.stashSlots, 50, 1, 200),
 		stashWeight: int(v.stashWeight, 25e4, 1e3, 1e7),
-		shopBlip: readBlip(v.shopBlip, {
+		shopBlip: readBlipStyle(v.shopBlip, {
 			sprite: 72,
 			color: 46,
 			scale: .6
 		}),
-		jobShopBlip: readBlip(v.jobShopBlip, {
+		jobShopBlip: readBlipStyle(v.jobShopBlip, {
 			sprite: 72,
 			color: 46,
 			scale: .6
 		}),
-		washBlip: readBlip(v.washBlip, {
+		washBlip: readBlipStyle(v.washBlip, {
 			sprite: 100,
 			color: 37,
 			scale: .75
@@ -1626,12 +1618,10 @@ function readShop(id, v) {
 		id,
 		label: str(v.label, id, 48),
 		job,
-		access: {
+		access: readAccess({
 			jobs: job ? [job] : [],
-			gangs: [],
-			grades: {},
 			onDuty: !0
-		},
+		}),
 		coords: point(v.coords),
 		radius: num(v.radius, 8),
 		blip: bool(v.blip, !0),
@@ -2237,7 +2227,7 @@ function shopAt(source, feature) {
 }
 const canUse = (source, shop) => online.allows(source, shop.access), ownedId = (vehicle) => optionalExport("ai-vehicles")?.GetVehicleIdByEntity(vehicle) ?? null;
 function ownsVehicle(source, vehicle) {
-	let id = ownedId(vehicle), owner = id === null ? null : optionalExport("ai-vehicles")?.GetVehicle(id)?.owner, charId = online.character(source)?.id;
+	let id = ownedId(vehicle), owner = id === null ? null : optionalExport("ai-vehicles")?.GetVehicle(id)?.owner, charId = online.charId(source);
 	return owner?.type === "character" && charId !== void 0 && owner.id === String(charId);
 }
 function payerOf(source, shop, vehicle) {
@@ -2273,7 +2263,7 @@ async function repair(source, vehicle) {
 	id !== null && optionalExport("ai-vehicles")?.SaveVehicle(id, { engine }), notify(source, Locale("MECH_KIT_DONE"), "success"), aiLog("repairs", "repair kit", { source });
 }
 function useKit(source) {
-	if (GetVehiclePedIsIn(GetPlayerPed(String(source)), !1)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
+	if (vehicleOf(source)) return notify(source, Locale("MECH_KIT_OUTSIDE"), "warning"), !1;
 	let vehicle = nearestVehicleTo(source, 4);
 	return vehicle ? GetVehicleEngineHealth(vehicle) >= content.settings.kitEngine ? (notify(source, Locale("MECH_KIT_NOT_NEEDED"), "info"), !1) : (repairing.run(source, void 0, () => repair(source, vehicle)), !1) : (notify(source, Locale("MECH_KIT_NO_VEHICLE"), "warning"), !1);
 }
@@ -2370,25 +2360,28 @@ onClientCallback(EVENTS.repair, {
 		}
 	}), { ok: !0 };
 });
-const washing = new Cooldowns();
+function washable(source, netId) {
+	let p = coordsOf(source);
+	if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10)) return "MECH_ERR_FAR";
+	let vehicle = driven(source, netId);
+	return vehicle ? GetVehicleDirtLevel(vehicle) < .1 ? "MECH_ERR_CLEAN" : vehicle : "MECH_ERR_DRIVER";
+}
 onClientCallback(EVENTS.wash, {
 	args: oneArg(readId),
 	lock: !0
-}, (source, netId) => {
-	if (!washing.ready(source)) return fail("MECH_ERR_BUSY");
-	let p = coordsOf(source);
-	if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10)) return fail("MECH_ERR_FAR");
-	let vehicle = driven(source, netId);
-	if (!vehicle) return fail("MECH_ERR_DRIVER");
-	if (GetVehicleDirtLevel(vehicle) < .1) return fail("MECH_ERR_CLEAN");
+}, async (source, netId) => {
+	let first = washable(source, netId);
+	if (typeof first == "string") return fail(first);
 	let { washPrice, washSeconds } = content.settings;
-	return pay(source, null, "player", washPrice, "carwash") ? (washing.start(source, washSeconds * 1e3), setTimeout(() => {
-		if (!DoesEntityExist(vehicle)) return;
-		SetVehicleDirtLevel(vehicle, 0);
-		let owner = NetworkGetEntityOwner(vehicle);
-		owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1);
-	}, washSeconds * 1e3), {
-		ok: !0,
-		seconds: washSeconds
-	}) : fail("MECH_ERR_MONEY");
+	if (!await progressFor(source, {
+		label: Locale("MECH_WASHING"),
+		duration: washSeconds * 1e3,
+		allowVehicle: !0
+	})) return { ok: !0 };
+	let vehicle = washable(source, netId);
+	if (typeof vehicle == "string") return fail(vehicle);
+	if (!pay(source, null, "player", washPrice, "carwash")) return fail("MECH_ERR_MONEY");
+	SetVehicleDirtLevel(vehicle, 0);
+	let owner = NetworkGetEntityOwner(vehicle);
+	return owner > 0 && emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1), { ok: !0 };
 });

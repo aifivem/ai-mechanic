@@ -35,7 +35,6 @@
   "MECH_ERR_DRIVER": "Sit in the driver seat",
   "MECH_ERR_MONEY": "Not enough money",
   "MECH_ERR_NOT_DAMAGED": "The vehicle is not damaged",
-  "MECH_ERR_BUSY": "A wash is already running",
   "MECH_ERR_CLEAN": "The vehicle is already clean",
   "MECH_MOD_11": "Engine",
   "MECH_MOD_12": "Brakes",

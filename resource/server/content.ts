@@ -46,7 +46,7 @@ function ownsVehicle(source: number, vehicle: number): boolean {
   const id = ownedId(vehicle);
   const owner =
     id === null ? null : optionalExport("ai-vehicles")?.GetVehicle(id)?.owner;
-  const charId = online.character(source)?.id;
+  const charId = online.charId(source);
   return (
     owner?.type === "character" &&
     charId !== undefined &&

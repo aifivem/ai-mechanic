@@ -2,12 +2,12 @@ import {
   aiLog,
   aiLogChannels,
   coordsOf,
-  Cooldowns,
   EntityState,
   notify,
   onClientCallback,
   optionalExport,
   plateOf,
+  progressFor,
   vehicleNearPlayer,
 } from "@aicore-fivem/lib/server";
 import {
@@ -138,31 +138,39 @@ onClientCallback(
   },
 );
 
-/** Washes in progress: one per player for the wash time; the dirt goes when it is over. */
-const washing = new Cooldowns();
+/** The vehicle the player drives at a car wash, or a refusal. */
+function washable(source: number, netId: number): number | string {
+  const p = coordsOf(source);
+  if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10))
+    return "MECH_ERR_FAR";
+  const vehicle = driven(source, netId);
+  if (!vehicle) return "MECH_ERR_DRIVER";
+  if (GetVehicleDirtLevel(vehicle) < 0.1) return "MECH_ERR_CLEAN";
+  return vehicle;
+}
 
 onClientCallback(
   EVENTS.wash,
   { args: oneArg(readId), lock: true },
-  (source, netId) => {
-    if (!washing.ready(source)) return fail("MECH_ERR_BUSY");
-    const p = coordsOf(source);
-    if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10))
-      return fail("MECH_ERR_FAR");
-    const vehicle = driven(source, netId);
-    if (!vehicle) return fail("MECH_ERR_DRIVER");
-    if (GetVehicleDirtLevel(vehicle) < 0.1) return fail("MECH_ERR_CLEAN");
+  async (source, netId) => {
+    const first = washable(source, netId);
+    if (typeof first === "string") return fail(first);
     const { washPrice, washSeconds } = content.settings;
+    const done = await progressFor(source, {
+      label: Locale("MECH_WASHING"),
+      duration: washSeconds * 1000,
+      allowVehicle: true,
+    });
+    // A cancelled bar ends quietly.
+    if (!done) return { ok: true };
+    const vehicle = washable(source, netId);
+    if (typeof vehicle === "string") return fail(vehicle);
     if (!pay(source, null, "player", washPrice, "carwash"))
       return fail("MECH_ERR_MONEY");
-    washing.start(source, washSeconds * 1000);
-    setTimeout(() => {
-      if (!DoesEntityExist(vehicle)) return;
-      SetVehicleDirtLevel(vehicle, 0);
-      const owner = NetworkGetEntityOwner(vehicle);
-      if (owner > 0)
-        emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1);
-    }, washSeconds * 1000);
-    return { ok: true, seconds: washSeconds };
+    SetVehicleDirtLevel(vehicle, 0);
+    const owner = NetworkGetEntityOwner(vehicle);
+    if (owner > 0)
+      emitNet(EVENTS.fix, owner, NetworkGetNetworkIdFromEntity(vehicle), -1);
+    return { ok: true };
   },
 );

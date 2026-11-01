@@ -9,12 +9,8 @@ import {
   online,
 } from "@aicore-fivem/lib/server";
 import { fail, readId, readInt, readText } from "@aicore-fivem/lib/shared";
-import {
-  BILL_METRES,
-  BILL_REASON_MAX,
-  EVENTS,
-  mechanicJobs,
-} from "common/mechanic";
+import { BILL_METRES, BILL_REASON_MAX, EVENTS } from "common/mechanic";
+import { mechanicJobs } from "common/shop";
 import { content } from "./content";
 
 aiLogChannels({ bills: {} });

@@ -6,7 +6,8 @@ import {
   resourceExport,
 } from "@aicore-fivem/lib/server";
 import { distance, record } from "@aicore-fivem/lib/shared";
-import { readSettings, readShop, readWash, type Shop } from "common/mechanic";
+import { readSettings } from "common/settings";
+import { readShop, readWash, type Shop } from "common/shop";
 import { mechanicSchema } from "./schema";
 
 export const core = resourceExport("ai-core");

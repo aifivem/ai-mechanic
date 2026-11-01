@@ -4,7 +4,7 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 
 ## Decisions
 
-- Tuning is one change per purchase (`Change` in `resource/common/mechanic.ts`); price and the props it produces are computed by the same functions on both sides, the server's result is the one written.
+- Tuning is one change per purchase (`Change` in `resource/common/tuning.ts`); price and the props it produces are computed by the same functions on both sides, the server's result is the one written.
 - A purchase writes ai-vehicles' `ai:props` bag and saves an owned vehicle with ai-vehicles' `SaveTuning` (the only caller: `SaveVehicle` keeps stored mods and neon); the server takes plate, engine / body health and dirt from the entity so a purchase never changes them. Repairs save only health through `SaveVehicle`.
 - Health, deformation and dirt can only be changed by the entity's owner client: the server sends `fix` to `NetworkGetEntityOwner`.
 - Job shops: on-duty members only: the shop's `access` is a lib `AccessRule` built from its single `job` with `onDuty` (client `canShow` `allows`, server `online.allows`; points refresh on `onMembershipChange`). `job` stays one name because it also names the paying account and the stash group, so the record has no `ACCESS_FIELDS`. Job shops are paid from the job's `bank` shared account, except a car the member's own character owns in ai-vehicles: that one the member pays from the panel's accounts (`payerOf`). Every purchase and repair is logged with its payer and vehicle id. Public shops: the driver pays from the panel's accounts.
@@ -15,7 +15,7 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 
 ## Contracts
 
-- Callbacks and events: `resource/common/mechanic.ts`.
+- Callbacks and events: `resource/common/mechanic.ts`; panel records and settings `common/shop.ts`, `common/settings.ts`.
 - Item `settings.kitItem` (default `repairkit`, ai-inventory `data/items.json`); job shop stash `mechanic_<shopId>`.
 
 ## Pitfalls
@@ -24,4 +24,5 @@ Mechanic shops (repair and tuning with live preview, public or run by a job with
 
 ## Entry points
 
-- Purchases, repairs, car washes `resource/server/index.ts`; customer bills `resource/server/bills.ts` (radial item and input in `resource/client/index.ts`); repair kit and stashes `resource/server/service.ts`; customs menus `resource/client/customs.ts`; shop, stash and wash points (lib `RecordObjects` + `Points`: an edited shop or wash rebuilds only its points, a settings change all) and owner fixes `resource/client/index.ts`; job shop stashes are registered per shop record the same way on the server (`RecordObjects` on the `AdminPanel`).
+- Server: purchases and repairs `resource/server/purchases.ts`, car washes `server/wash.ts` (the driven vehicle `server/driven.ts`); customer bills `server/bills.ts`; repair kit and stashes `server/service.ts` (job shop stashes are registered per shop record with `RecordObjects` on the `AdminPanel`); panel `server/content.ts` + `server/schema/` (one file per tab, the settings tab's price card in `schema/prices.ts`).
+- Client: customs menus `resource/client/customs/` (`customs.ts` the menus, `visit.ts` the vehicle with live preview and purchase, `options.ts` the option lists); shop, stash and wash points with their actions `client/points.ts` (lib `RecordObjects` + `Points`: an edited shop or wash rebuilds only its points, a settings change all); bill radial item and input `client/bills.ts`; owner fixes `client/fixes.ts`.

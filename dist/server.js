@@ -550,7 +550,7 @@ function isNear(source, point, metres) {
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
 }
 // ../../../packages/lib/src/server/gate.ts
-const core$27 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$27.GetCharacter(source) !== null || "no character loaded", gates = new Set();
+const core$28 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$28.GetCharacter(source) !== null || "no character loaded", gates = new Set();
 on("playerDropped", () => {
 	let source = Number(globalThis.source);
 	for (let gate of gates) gate.release(source);
@@ -595,7 +595,7 @@ var ClientGate = class {
 	}
 };
 // ../../../packages/lib/src/server/callback.ts
-const log$5 = createLogger(GetCurrentResourceName()), resource$1 = GetCurrentResourceName(), REFUSED = Symbol("refused");
+const log$5 = createLogger(GetCurrentResourceName()), resource$2 = GetCurrentResourceName(), REFUSED = Symbol("refused");
 function onClientCallback(name, first, second) {
 	let [handler, options] = typeof first == "function" ? [first, second ?? {}] : [second, first], gate = new ClientGate(name, options, 20);
 	onNet(requestEvent(name), async (caller, id, ...raw) => {
@@ -613,7 +613,7 @@ function onClientCallback(name, first, second) {
 }
 const pending = new Map();
 let nextId = 0;
-onNet(responseEvent(resource$1), (id, ok, result) => {
+onNet(responseEvent(resource$2), (id, ok, result) => {
 	let entry = typeof id == "number" ? pending.get(id) : void 0;
 	entry && entry.source === Number(globalThis.source) && (pending.delete(id), clearTimeout(entry.timer), ok === !0 ? entry.resolve(result) : entry.reject(Error("client callback failed")));
 });
@@ -628,7 +628,7 @@ function triggerClientCallback(name, source, args = [], timeoutMs = 3e4) {
 			resolve,
 			reject,
 			timer
-		}), emitNet(requestEvent(name), source, resource$1, id, ...args);
+		}), emitNet(requestEvent(name), source, resource$2, id, ...args);
 	});
 }
 // ../../../packages/lib/src/server/admin/patch.ts
@@ -673,7 +673,7 @@ function toPatch(value) {
 		default: return null;
 	}
 }
-const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$26 = resourceExport(CORE.resource), ERR = {
+const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$27 = resourceExport(CORE.resource), ERR = {
 	type: "ADMIN_ERR_TYPE",
 	range: "ADMIN_ERR_RANGE",
 	length: "ADMIN_ERR_LENGTH",
@@ -687,7 +687,7 @@ const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(va
 		if (cached && Date.now() - cached.at < 2e3) return cached.values.size > 0 ? cached.values : null;
 		let list = [];
 		try {
-			list = core$26.GetLookupValues(source);
+			list = core$27.GetLookupValues(source);
 		} catch {}
 		let values = new Set(Array.isArray(list) ? list.filter((v) => typeof v == "string") : []);
 		return this.lists.set(source, {
@@ -816,11 +816,7 @@ function applyEdit(data, patch, spec) {
 	}
 	return [spec.kind === "records" ? patch.key : void 0];
 }
-// ../../../packages/lib/src/server/admin/jsonSchema.ts
-const SCHEMA_KEY = {
-	type: "string",
-	description: "This file's JSON Schema (for editors)."
-};
+// ../../../packages/lib/src/server/admin/descriptions.ts
 function langFile(resource) {
 	try {
 		let raw = JSON.parse(LoadResourceFile(resource, "locales/en.json") ?? "{}");
@@ -847,6 +843,11 @@ function describe(schema, file, lang) {
 	for (let tab of schema.tabs) if (tab.file === file) for (let card of tab.cards) collect(card.fields, "", lang, out);
 	return out;
 }
+// ../../../packages/lib/src/server/admin/jsonSchema.ts
+const SCHEMA_KEY = {
+	type: "string",
+	description: "This file's JSON Schema (for editors)."
+};
 function toJson(spec, path, desc) {
 	let description = desc.get(path), base = description ? { description } : {};
 	switch (spec.type) {
@@ -951,27 +952,20 @@ function writeSchema(resource, name, text, log) {
 	let dir = `${GetResourcePath(resource)}/data/schemas`;
 	(0, node_fs_promises.mkdir)(dir, { recursive: !0 }).then(() => (0, node_fs_promises.writeFile)(`${dir}/${name}.schema.json`, text, "utf8")).catch((error) => log.error(`writing ${resource}/${path} failed`, error));
 }
-// ../../../packages/lib/src/server/admin/panel.ts
-const core$25 = resourceExport(CORE.resource);
-var AdminPanel = class {
+// ../../../packages/lib/src/server/admin/panelFiles.ts
+const core$26 = resourceExport(CORE.resource);
+var PanelFiles = class {
 	schema;
 	data = new Map();
 	dataFiles = new Map();
 	handlers = new Map();
-	rules = new Map();
-	actions = new Map();
 	views = new FileViews((file) => this.get(file));
 	worldChanges = new Map();
 	resource = GetCurrentResourceName();
 	log = createLogger(this.resource);
-	editor = 0;
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelData", () => this.dataSnapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
-			count: 4,
-			windowMs: 1e4
-		} }), setImmediate(() => core$25.RegisterAdminPanel(this.resource));
 	}
 	get(file) {
 		return this.data.get(file) ?? {};
@@ -979,17 +973,68 @@ var AdminPanel = class {
 	onChange(file, handler) {
 		this.handlers.set(file, [...this.handlers.get(file) ?? [], handler]);
 	}
-	rule(file, rule) {
-		this.rules.set(file, rule);
-	}
-	onAction(id, handler) {
-		this.actions.set(id, handler);
-	}
 	view(file, read) {
 		return this.views.view(file, read);
 	}
 	records(file, readOne) {
 		return this.views.records(file, readOne);
+	}
+	commit(file, key, value) {
+		let data = this.data.get(file);
+		data && (key === void 0 ? isRecord(value) && this.data.set(file, clone(value)) : value === null ? delete data[key] : data[key] = clone(value), this.changed(file, key));
+	}
+	commitAfter(file, key, value) {
+		setImmediate(() => this.commit(file, key, value));
+	}
+	store(patch, spec) {
+		let data = this.data.get(patch.file) ?? {}, keys = applyEdit(data, patch, spec);
+		if (keys.length !== 0) {
+			this.data.set(patch.file, data);
+			for (let key of keys) this.changed(patch.file, key);
+		}
+	}
+	changed(file, key) {
+		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
+		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
+		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
+		if (core$26.AdminPanelChanged({
+			resource: this.resource,
+			file,
+			key,
+			value: clone(value)
+		}), spec?.sync !== "all") return;
+		let changes = this.worldChanges.get(file) ?? {};
+		changes[key ?? ""] = clone(value), this.worldChanges.set(file, changes), emitNet(ADMIN.worldEvent(this.resource), -1, file, key ?? null, value);
+	}
+	load(name, spec) {
+		if (spec.memory) {
+			this.data.set(name, {});
+			return;
+		}
+		let file = new DataFile(this.resource, name, this.log);
+		this.dataFiles.set(name, file), file.schemaRef = `./schemas/${name}.schema.json`, writeSchema(this.resource, name, fileSchema(this.resource, this.schema, name, spec), this.log);
+		let raw = file.read(), data = isRecord(raw) ? raw : {}, filled = !1;
+		if (spec.kind === "settings") for (let [section, value] of Object.entries(spec.defaults ?? {})) section in data || (data[section] = clone(value), filled = !0);
+		this.data.set(name, data), (filled || raw === null || !file.hasSchemaRef()) && file.write(data);
+	}
+};
+// ../../../packages/lib/src/server/admin/panel.ts
+const core$25 = resourceExport(CORE.resource);
+var AdminPanel = class extends PanelFiles {
+	rules = new Map();
+	actions = new Map();
+	editor = 0;
+	constructor(schema) {
+		super(schema), registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelData", () => this.dataSnapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
+			count: 4,
+			windowMs: 1e4
+		} }), setImmediate(() => core$25.RegisterAdminPanel(this.resource));
+	}
+	rule(file, rule) {
+		this.rules.set(file, rule);
+	}
+	onAction(id, handler) {
+		this.actions.set(id, handler);
 	}
 	snapshot() {
 		return {
@@ -1067,44 +1112,6 @@ var AdminPanel = class {
 			};
 		}
 	}
-	commit(file, key, value) {
-		let data = this.data.get(file);
-		data && (key === void 0 ? isRecord(value) && this.data.set(file, clone(value)) : value === null ? delete data[key] : data[key] = clone(value), this.changed(file, key));
-	}
-	commitAfter(file, key, value) {
-		setImmediate(() => this.commit(file, key, value));
-	}
-	store(patch, spec) {
-		let data = this.data.get(patch.file) ?? {}, keys = applyEdit(data, patch, spec);
-		if (keys.length !== 0) {
-			this.data.set(patch.file, data);
-			for (let key of keys) this.changed(patch.file, key);
-		}
-	}
-	changed(file, key) {
-		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
-		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
-		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
-		if (core$25.AdminPanelChanged({
-			resource: this.resource,
-			file,
-			key,
-			value: clone(value)
-		}), spec?.sync !== "all") return;
-		let changes = this.worldChanges.get(file) ?? {};
-		changes[key ?? ""] = clone(value), this.worldChanges.set(file, changes), emitNet(ADMIN.worldEvent(this.resource), -1, file, key ?? null, value);
-	}
-	load(name, spec) {
-		if (spec.memory) {
-			this.data.set(name, {});
-			return;
-		}
-		let file = new DataFile(this.resource, name, this.log);
-		this.dataFiles.set(name, file), file.schemaRef = `./schemas/${name}.schema.json`, writeSchema(this.resource, name, fileSchema(this.resource, this.schema, name, spec), this.log);
-		let raw = file.read(), data = isRecord(raw) ? raw : {}, filled = !1;
-		if (spec.kind === "settings") for (let [section, value] of Object.entries(spec.defaults ?? {})) section in data || (data[section] = clone(value), filled = !0);
-		this.data.set(name, data), (filled || raw === null || !file.hasSchemaRef()) && file.write(data);
-	}
 };
 function labelOf(record, path) {
 	if (!path) return null;
@@ -1161,7 +1168,7 @@ function reindex(index, source, before, after) {
 		set || index.set(name, set = new Set()), set.add(source);
 	}
 }
-var OnlinePlayers = class {
+var OnlineMirror = class {
 	players = new Map();
 	onDuty = new Map();
 	jobIndex = new Map();
@@ -1213,6 +1220,7 @@ var OnlinePlayers = class {
 		let set = this.onDuty.get(job);
 		set || this.onDuty.set(job, set = new Set()), set.add(source);
 	}
+}, OnlinePlayers = class extends OnlineMirror {
 	sources() {
 		return this.start(), this.players.keys();
 	}
@@ -1280,7 +1288,14 @@ var OnlinePlayers = class {
 };
 const EMPTY = new Set(), online = new OnlinePlayers();
 resourceExport(CORE.resource), resourceExport(CORE.resource);
-// ../../../packages/lib/src/server/vehicle.ts
+// ../../../packages/lib/src/server/netEntity.ts
+function entityFromNet(netId, type) {
+	if (readId(netId) === null) return 0;
+	let entity = NetworkGetEntityFromNetworkId(netId);
+	return !entity || !DoesEntityExist(entity) ? 0 : type === void 0 || GetEntityType(entity) === type ? entity : 0;
+}
+const vehicleFromNet = (netId) => entityFromNet(netId, 2);
+// ../../../packages/lib/src/server/vehicle/nearby.ts
 function nearestVehicleTo(source, metres, filter) {
 	let ped = GetPlayerPed(String(source)), own = GetVehiclePedIsIn(ped, !1);
 	if (own && (!filter || filter(own))) return own;
@@ -1291,12 +1306,6 @@ function nearestVehicleTo(source, metres, filter) {
 	}
 	return best;
 }
-function entityFromNet(netId, type) {
-	if (readId(netId) === null) return 0;
-	let entity = NetworkGetEntityFromNetworkId(netId);
-	return !entity || !DoesEntityExist(entity) ? 0 : type === void 0 || GetEntityType(entity) === type ? entity : 0;
-}
-const vehicleFromNet = (netId) => entityFromNet(netId, 2);
 function vehicleNearPlayer(source, netId, options = {}) {
 	let vehicle = vehicleFromNet(netId);
 	if (!vehicle) return 0;
@@ -1369,10 +1378,10 @@ new class {
 		let def = this.gangs.get(name);
 		return def === void 0 && this.gangs.set(name, def = core$19.GetGangDefinition(name) ?? null), def;
 	}
-}();
-// ../../../packages/lib/src/server/command.ts
+}(), createLogger(GetCurrentResourceName());
+// ../../../packages/lib/src/server/command/commandSet.ts
 const resource = GetCurrentResourceName();
-createLogger(resource), new class {
+new class {
 	list = [];
 	sent = new Map();
 	announced = 0;
@@ -1400,47 +1409,8 @@ createLogger(resource), new class {
 }(), createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
 // ../../../packages/lib/src/fivem/byResource.ts
 const plateOf = (vehicle) => GetVehicleNumberPlateText(vehicle).trim().toUpperCase();
-let log = null;
-var ScheduledJob = class {
-	interval;
-	fn;
-	name;
-	gen = 0;
-	active = !1;
-	stopped = !1;
-	quietUntil = 0;
-	skipped = 0;
-	constructor(interval, fn, name) {
-		this.interval = interval, this.fn = fn, this.name = name;
-	}
-	get running() {
-		return this.active;
-	}
-	set(active) {
-		active === this.active || active && this.stopped || (this.active = active, active ? scheduler.activate(this) : scheduler.deactivate(this));
-	}
-	stop() {
-		this.set(!1), this.stopped = !0;
-	}
-	call() {
-		try {
-			let result = this.fn();
-			result instanceof Promise && result.catch((error) => this.fail(error));
-		} catch (error) {
-			this.fail(error);
-		}
-	}
-	fail(error) {
-		let now = GetGameTimer();
-		if (now < this.quietUntil) {
-			this.skipped++;
-			return;
-		}
-		this.quietUntil = now + 1e4;
-		let more = this.skipped ? ` (+${this.skipped} more)` : "";
-		this.skipped = 0, log ??= createLogger(GetCurrentResourceName()), log.error(`job "${this.name}" failed${more}`, error instanceof Error ? error.stack ?? error.message : error);
-	}
-}, Group = class {
+// ../../../packages/lib/src/fivem/scheduler/group.ts
+var Group = class {
 	interval;
 	jobs = Array(8);
 	gens = Array(8).fill(0);
@@ -1526,12 +1496,52 @@ const scheduler = new class {
 		groups.length = kept, this.nextDue = soonest;
 	};
 }();
+let log = null;
+var ScheduledJob = class {
+	interval;
+	fn;
+	name;
+	gen = 0;
+	active = !1;
+	stopped = !1;
+	quietUntil = 0;
+	skipped = 0;
+	constructor(interval, fn, name) {
+		this.interval = interval, this.fn = fn, this.name = name;
+	}
+	get running() {
+		return this.active;
+	}
+	set(active) {
+		active === this.active || active && this.stopped || (this.active = active, active ? scheduler.activate(this) : scheduler.deactivate(this));
+	}
+	stop() {
+		this.set(!1), this.stopped = !0;
+	}
+	call() {
+		try {
+			let result = this.fn();
+			result instanceof Promise && result.catch((error) => this.fail(error));
+		} catch (error) {
+			this.fail(error);
+		}
+	}
+	fail(error) {
+		let now = GetGameTimer();
+		if (now < this.quietUntil) {
+			this.skipped++;
+			return;
+		}
+		this.quietUntil = now + 1e4;
+		let more = this.skipped ? ` (+${this.skipped} more)` : "";
+		this.skipped = 0, log ??= createLogger(GetCurrentResourceName()), log.error(`job "${this.name}" failed${more}`, error instanceof Error ? error.stack ?? error.message : error);
+	}
+};
 function every(ms, fn, options = {}) {
 	let job = new ScheduledJob(Math.max(0, Math.floor(ms)), fn, options.name ?? (fn.name || "anonymous"));
 	return options.active !== !1 && job.set(!0), job;
 }
-// ../../../packages/lib/src/fivem/state.ts
-const isServer = IsDuplicityVersion();
+// ../../../packages/lib/src/fivem/state/mirror.ts
 var Mirror = class {
 	key;
 	parse;
@@ -1550,14 +1560,17 @@ var Mirror = class {
 		let old = this.values.get(id);
 		if (this.values.set(id, value), old !== value) for (let listener of this.listeners) listener(id, value, old);
 	}
-}, EntityState$1 = class extends Mirror {
+};
+// ../../../packages/lib/src/fivem/state/entityState.ts
+const isServer$1 = IsDuplicityVersion();
+var EntityState$1 = class extends Mirror {
 	handles = new Map();
 	constructor(key, parse) {
 		super(key, parse), AddStateBagChangeHandler(key, "", (bag, _key, value) => {
 			if (!bag.startsWith("entity:")) return;
 			let netId = Number(bag.slice(7));
 			this.handles.set(netId, GetEntityFromStateBagName(bag)), this.store(netId, value);
-		}), isServer ? on("entityRemoved", (entity) => this.forget(NetworkGetNetworkIdFromEntity(entity))) : every(3e4, () => this.prune(), { name: `state ${key}` });
+		}), isServer$1 ? on("entityRemoved", (entity) => this.forget(NetworkGetNetworkIdFromEntity(entity))) : every(3e4, () => this.prune(), { name: `state ${key}` });
 	}
 	get(entity) {
 		if (!entity) return;
@@ -1584,7 +1597,10 @@ var Mirror = class {
 	prune() {
 		for (let netId of this.values.keys()) DoesEntityExist(NetworkGetEntityFromNetworkId(netId)) || this.forget(netId);
 	}
-}, EntityState = class extends EntityState$1 {
+};
+IsDuplicityVersion();
+// ../../../packages/lib/src/server/state.ts
+var EntityState = class extends EntityState$1 {
 	set(entity, value) {
 		DoesEntityExist(entity) && (Entity(entity).state.set(this.key, value ?? null, !0), this.put(entity, value));
 	}
@@ -1598,9 +1614,6 @@ const core$11 = resourceExport(CORE.resource), billing = {
 	provider: () => core$11.GetBillingSystem()
 };
 resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
-// resource/common/locale.ts
-const Locale = createLocale();
-GetCurrentResourceName(), IsDuplicityVersion();
 // resource/common/mechanic.ts
 const EVENTS = {
 	buy: "ai-mechanic:buy",
@@ -1617,6 +1630,39 @@ const EVENTS = {
 		z: num(p.z, 0)
 	};
 };
+function readShop(id, v) {
+	let stash = point(v.stash), job = str(v.job, "", 32);
+	return {
+		ped: readPlacePed(v.ped),
+		id,
+		label: str(v.label, id, 48),
+		job,
+		access: readAccess({
+			jobs: job ? [job] : [],
+			onDuty: !0
+		}),
+		coords: point(v.coords),
+		radius: num(v.radius, 8),
+		blip: bool(v.blip, !0),
+		repair: bool(v.repair, !0),
+		tuning: bool(v.tuning, !0),
+		multiplier: num(v.multiplier, 1),
+		stash: stash.x === 0 && stash.y === 0 ? null : stash
+	};
+}
+function mechanicJobs(shops) {
+	let jobs = new Set();
+	for (let shop of shops) shop.job && jobs.add(shop.job);
+	return [...jobs];
+}
+function readWash(id, v) {
+	return {
+		id,
+		label: str(v.label, id, 48),
+		coords: point(v.coords)
+	};
+}
+// resource/common/settings.ts
 function readSettings(raw) {
 	let v = record(raw), accounts = Array.isArray(v.accounts) ? v.accounts.filter((a) => typeof a == "string") : [];
 	return {
@@ -1656,170 +1702,293 @@ function readSettings(raw) {
 		billMax: int(v.billMax, 5e4, 1, 1e7)
 	};
 }
-function readShop(id, v) {
-	let stash = point(v.stash), job = str(v.job, "", 32);
-	return {
-		ped: readPlacePed(v.ped),
-		id,
-		label: str(v.label, id, 48),
-		job,
-		access: readAccess({
-			jobs: job ? [job] : [],
-			onDuty: !0
-		}),
-		coords: point(v.coords),
-		radius: num(v.radius, 8),
-		blip: bool(v.blip, !0),
-		repair: bool(v.repair, !0),
-		tuning: bool(v.tuning, !0),
-		multiplier: num(v.multiplier, 1),
-		stash: stash.x === 0 && stash.y === 0 ? null : stash
-	};
-}
-function mechanicJobs(shops) {
-	let jobs = new Set();
-	for (let shop of shops) shop.job && jobs.add(shop.job);
-	return [...jobs];
-}
-function readWash(id, v) {
-	return {
-		id,
-		label: str(v.label, id, 48),
-		coords: point(v.coords)
-	};
-}
-const PERFORMANCE_MODS = [
-	11,
-	12,
-	13,
-	15,
-	16
-], COSMETIC_MODS = [
-	0,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	14,
-	25,
-	26,
-	27,
-	28,
-	29,
-	30,
-	31,
-	32,
-	33,
-	34,
-	35,
-	36,
-	37,
-	38,
-	39,
-	40,
-	41,
-	42,
-	43,
-	44,
-	45,
-	46,
-	48
-], TOGGLE_MODS = [18, 22], PAINTS = [
-	0,
-	1,
-	4,
-	112,
-	27,
-	30,
-	38,
-	89,
-	92,
-	53,
-	64,
-	70,
-	145,
-	135,
-	96,
-	158,
-	120
-], isInt = (v, min, max) => typeof v == "number" && Number.isInteger(v) && v >= min && v <= max, MOD_TYPES = new Set([
-	...PERFORMANCE_MODS,
-	...COSMETIC_MODS,
-	...TOGGLE_MODS
-]);
-function toChange(v) {
-	let c = record(v);
-	switch (c.kind) {
-		case "mod": return isInt(c.type, 0, 48) && MOD_TYPES.has(c.type) && isInt(c.index, -1, 250) ? {
-			kind: "mod",
-			type: c.type,
-			index: c.index
-		} : null;
-		case "wheels": return isInt(c.wheelType, 0, 12) && isInt(c.index, -1, 250) ? {
-			kind: "wheels",
-			wheelType: c.wheelType,
-			index: c.index
-		} : null;
-		case "paint": return (c.slot === 0 || c.slot === 1) && isInt(c.color, 0, 160) && PAINTS.includes(c.color) ? {
-			kind: "paint",
-			slot: c.slot,
-			color: c.color
-		} : null;
-		case "tint": return isInt(c.value, 0, 6) ? {
-			kind: "tint",
-			value: c.value
-		} : null;
-		case "plate": return isInt(c.value, 0, 5) ? {
-			kind: "plate",
-			value: c.value
-		} : null;
-		default: return null;
-	}
-}
-function priceOf(change, s) {
-	switch (change.kind) {
-		case "mod": return change.index < 0 ? 0 : change.type === 18 ? s.turbo : change.type === 22 ? s.xenon : PERFORMANCE_MODS.includes(change.type) ? s.performance * (change.index + 1) : s.cosmetic;
-		case "wheels": return change.index < 0 ? 0 : s.wheels;
-		case "paint": return s.paint;
-		case "tint": return change.value === 0 ? 0 : s.tint;
-		case "plate": return s.plate;
-		default: return change;
-	}
-}
-function applyChange(props, change) {
-	let next = {
-		...props,
-		mods: { ...props.mods },
-		colors: [...props.colors]
-	};
-	switch (change.kind) {
-		case "mod":
-			next.mods[change.type] = TOGGLE_MODS.includes(change.type) ? +(change.index >= 0) : change.index;
-			break;
-		case "wheels":
-			next.wheelType = change.wheelType, next.mods[23] = change.index;
-			break;
-		case "paint":
-			next.colors[change.slot] = change.color, change.slot === 0 ? next.customPrimary = null : next.customSecondary = null;
-			break;
-		case "tint":
-			next.windowTint = change.value;
-			break;
-		case "plate": next.plateIndex = change.value;
-	}
-	return next;
-}
-// resource/server/schema.ts
+// resource/server/schema/blip.ts
 const blip = {
 	type: "object",
 	optional: !0,
 	fields: BLIP_STYLE_FIELDS
+}, shopsFile = {
+	kind: "records",
+	sync: "all",
+	labelPath: "label",
+	newRecord: {
+		label: "",
+		job: "",
+		coords: {
+			x: 0,
+			y: 0,
+			z: 0
+		},
+		radius: 8,
+		blip: !0,
+		repair: !0,
+		tuning: !0,
+		multiplier: 1,
+		stash: {
+			x: 0,
+			y: 0,
+			z: 0
+		}
+	},
+	sections: {
+		ped: PLACE_PED_SPEC,
+		label: {
+			type: "text",
+			min: 1,
+			max: 48
+		},
+		job: {
+			type: "text",
+			lookup: "job",
+			min: 0,
+			max: 32
+		},
+		coords: { type: "vec3" },
+		radius: {
+			type: "number",
+			min: 2,
+			max: 40
+		},
+		blip: { type: "bool" },
+		repair: { type: "bool" },
+		tuning: { type: "bool" },
+		multiplier: {
+			type: "number",
+			min: 0,
+			max: 10
+		},
+		stash: { type: "vec3" }
+	}
+}, shopsTab = {
+	id: "shops",
+	file: "shops",
+	icon: "wrench",
+	label: "ADMIN_TAB_SHOPS",
+	desc: "ADMIN_TAB_SHOPS_DESC",
+	listSub: "job",
+	createLabel: "ADMIN_NEW_SHOP",
+	deleteLabel: "ADMIN_DELETE_SHOP",
+	deleteDesc: "ADMIN_DELETE_SHOP_DESC",
+	cards: [
+		{
+			icon: "wrench",
+			title: "ADMIN_C_SHOP",
+			desc: "ADMIN_C_SHOP_DESC",
+			fields: [
+				{
+					widget: "text",
+					path: "label",
+					suggest: { from: "coords" },
+					label: "ADMIN_F_LABEL",
+					placeholder: "ADMIN_P_LABEL"
+				},
+				{
+					widget: "point",
+					path: "coords",
+					label: "ADMIN_F_COORDS",
+					hint: "ADMIN_H_COORDS",
+					ground: !0
+				},
+				{
+					widget: "number",
+					path: "radius",
+					label: "ADMIN_F_RADIUS",
+					hint: "ADMIN_H_RADIUS",
+					min: 2,
+					max: 40,
+					unit: "m"
+				},
+				{
+					widget: "switch",
+					path: "blip",
+					label: "ADMIN_F_BLIP"
+				},
+				{
+					widget: "switch",
+					path: "repair",
+					label: "ADMIN_F_REPAIR",
+					hint: "ADMIN_H_REPAIR"
+				},
+				{
+					widget: "switch",
+					path: "tuning",
+					label: "ADMIN_F_TUNING",
+					hint: "ADMIN_H_TUNING"
+				},
+				{
+					widget: "number",
+					path: "multiplier",
+					label: "ADMIN_F_MULTIPLIER",
+					hint: "ADMIN_H_MULTIPLIER",
+					min: 0,
+					max: 10,
+					step: .05,
+					unit: "x"
+				}
+			]
+		},
+		{
+			icon: "briefcase",
+			title: "ADMIN_C_JOB",
+			desc: "ADMIN_C_JOB_DESC",
+			fields: [{
+				widget: "text",
+				lookup: "job",
+				path: "job",
+				label: "ADMIN_F_JOB",
+				hint: "ADMIN_H_JOB",
+				placeholder: "ADMIN_P_JOB"
+			}, {
+				widget: "point",
+				path: "stash",
+				label: "ADMIN_F_STASH",
+				hint: "ADMIN_H_STASH",
+				ground: !0
+			}]
+		},
+		{
+			icon: "user",
+			title: "ADMIN_C_PED",
+			desc: "ADMIN_C_PED_DESC",
+			fields: placePedFields()
+		}
+	]
+}, washesFile = {
+	kind: "records",
+	sync: "all",
+	labelPath: "label",
+	newRecord: {
+		label: "",
+		coords: {
+			x: 0,
+			y: 0,
+			z: 0
+		}
+	},
+	sections: {
+		label: {
+			type: "text",
+			min: 1,
+			max: 48
+		},
+		coords: { type: "vec3" }
+	}
+}, washesTab = {
+	id: "washes",
+	file: "washes",
+	icon: "droplet",
+	label: "ADMIN_TAB_WASHES",
+	desc: "ADMIN_TAB_WASHES_DESC",
+	createLabel: "ADMIN_NEW_WASH",
+	deleteLabel: "ADMIN_DELETE_WASH",
+	cards: [{
+		icon: "droplet",
+		title: "ADMIN_C_WASH",
+		desc: "ADMIN_C_WASH_DESC",
+		fields: [{
+			widget: "text",
+			path: "label",
+			suggest: { from: "coords" },
+			label: "ADMIN_F_LABEL",
+			placeholder: "ADMIN_P_WASH_LABEL"
+		}, {
+			widget: "point",
+			path: "coords",
+			label: "ADMIN_F_COORDS",
+			hint: "ADMIN_H_WASH_COORDS",
+			ground: !0
+		}]
+	}]
+}, pricesCard = {
+	icon: "money-bill-wave",
+	title: "ADMIN_C_PRICES",
+	desc: "ADMIN_C_PRICES_DESC",
+	fields: [
+		{
+			widget: "tags",
+			lookup: "account",
+			path: "accounts",
+			label: "ADMIN_F_ACCOUNTS",
+			hint: "ADMIN_H_ACCOUNTS",
+			placeholder: "ADMIN_P_ACCOUNTS"
+		},
+		{
+			widget: "number",
+			path: "repairPoint",
+			label: "ADMIN_F_REPAIR_POINT",
+			hint: "ADMIN_H_REPAIR_POINT",
+			min: 0,
+			max: 100,
+			step: .1,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "performance",
+			label: "ADMIN_F_PERFORMANCE",
+			hint: "ADMIN_H_PERFORMANCE",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "turbo",
+			label: "ADMIN_F_TURBO",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "xenon",
+			label: "ADMIN_F_XENON",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "cosmetic",
+			label: "ADMIN_F_COSMETIC",
+			hint: "ADMIN_H_COSMETIC",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "wheels",
+			label: "ADMIN_F_WHEELS",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "paint",
+			label: "ADMIN_F_PAINT",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "tint",
+			label: "ADMIN_F_TINT",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		},
+		{
+			widget: "number",
+			path: "plate",
+			label: "ADMIN_F_PLATE",
+			min: 0,
+			max: 1e6,
+			unit: "$"
+		}
+	]
 }, mechanicSchema = {
 	title: "ADMIN_TITLE",
 	icon: "wrench",
@@ -1880,204 +2049,12 @@ const blip = {
 				}
 			}
 		},
-		shops: {
-			kind: "records",
-			sync: "all",
-			labelPath: "label",
-			newRecord: {
-				label: "",
-				job: "",
-				coords: {
-					x: 0,
-					y: 0,
-					z: 0
-				},
-				radius: 8,
-				blip: !0,
-				repair: !0,
-				tuning: !0,
-				multiplier: 1,
-				stash: {
-					x: 0,
-					y: 0,
-					z: 0
-				}
-			},
-			sections: {
-				ped: PLACE_PED_SPEC,
-				label: {
-					type: "text",
-					min: 1,
-					max: 48
-				},
-				job: {
-					type: "text",
-					lookup: "job",
-					min: 0,
-					max: 32
-				},
-				coords: { type: "vec3" },
-				radius: {
-					type: "number",
-					min: 2,
-					max: 40
-				},
-				blip: { type: "bool" },
-				repair: { type: "bool" },
-				tuning: { type: "bool" },
-				multiplier: {
-					type: "number",
-					min: 0,
-					max: 10
-				},
-				stash: { type: "vec3" }
-			}
-		},
-		washes: {
-			kind: "records",
-			sync: "all",
-			labelPath: "label",
-			newRecord: {
-				label: "",
-				coords: {
-					x: 0,
-					y: 0,
-					z: 0
-				}
-			},
-			sections: {
-				label: {
-					type: "text",
-					min: 1,
-					max: 48
-				},
-				coords: { type: "vec3" }
-			}
-		}
+		shops: shopsFile,
+		washes: washesFile
 	},
 	tabs: [
-		{
-			id: "shops",
-			file: "shops",
-			icon: "wrench",
-			label: "ADMIN_TAB_SHOPS",
-			desc: "ADMIN_TAB_SHOPS_DESC",
-			listSub: "job",
-			createLabel: "ADMIN_NEW_SHOP",
-			deleteLabel: "ADMIN_DELETE_SHOP",
-			deleteDesc: "ADMIN_DELETE_SHOP_DESC",
-			cards: [
-				{
-					icon: "wrench",
-					title: "ADMIN_C_SHOP",
-					desc: "ADMIN_C_SHOP_DESC",
-					fields: [
-						{
-							widget: "text",
-							path: "label",
-							suggest: { from: "coords" },
-							label: "ADMIN_F_LABEL",
-							placeholder: "ADMIN_P_LABEL"
-						},
-						{
-							widget: "point",
-							path: "coords",
-							label: "ADMIN_F_COORDS",
-							hint: "ADMIN_H_COORDS",
-							ground: !0
-						},
-						{
-							widget: "number",
-							path: "radius",
-							label: "ADMIN_F_RADIUS",
-							hint: "ADMIN_H_RADIUS",
-							min: 2,
-							max: 40,
-							unit: "m"
-						},
-						{
-							widget: "switch",
-							path: "blip",
-							label: "ADMIN_F_BLIP"
-						},
-						{
-							widget: "switch",
-							path: "repair",
-							label: "ADMIN_F_REPAIR",
-							hint: "ADMIN_H_REPAIR"
-						},
-						{
-							widget: "switch",
-							path: "tuning",
-							label: "ADMIN_F_TUNING",
-							hint: "ADMIN_H_TUNING"
-						},
-						{
-							widget: "number",
-							path: "multiplier",
-							label: "ADMIN_F_MULTIPLIER",
-							hint: "ADMIN_H_MULTIPLIER",
-							min: 0,
-							max: 10,
-							step: .05,
-							unit: "x"
-						}
-					]
-				},
-				{
-					icon: "briefcase",
-					title: "ADMIN_C_JOB",
-					desc: "ADMIN_C_JOB_DESC",
-					fields: [{
-						widget: "text",
-						lookup: "job",
-						path: "job",
-						label: "ADMIN_F_JOB",
-						hint: "ADMIN_H_JOB",
-						placeholder: "ADMIN_P_JOB"
-					}, {
-						widget: "point",
-						path: "stash",
-						label: "ADMIN_F_STASH",
-						hint: "ADMIN_H_STASH",
-						ground: !0
-					}]
-				},
-				{
-					icon: "user",
-					title: "ADMIN_C_PED",
-					desc: "ADMIN_C_PED_DESC",
-					fields: placePedFields()
-				}
-			]
-		},
-		{
-			id: "washes",
-			file: "washes",
-			icon: "droplet",
-			label: "ADMIN_TAB_WASHES",
-			desc: "ADMIN_TAB_WASHES_DESC",
-			createLabel: "ADMIN_NEW_WASH",
-			deleteLabel: "ADMIN_DELETE_WASH",
-			cards: [{
-				icon: "droplet",
-				title: "ADMIN_C_WASH",
-				desc: "ADMIN_C_WASH_DESC",
-				fields: [{
-					widget: "text",
-					path: "label",
-					suggest: { from: "coords" },
-					label: "ADMIN_F_LABEL",
-					placeholder: "ADMIN_P_WASH_LABEL"
-				}, {
-					widget: "point",
-					path: "coords",
-					label: "ADMIN_F_COORDS",
-					hint: "ADMIN_H_WASH_COORDS",
-					ground: !0
-				}]
-			}]
-		},
+		shopsTab,
+		washesTab,
 		{
 			id: "settings",
 			file: "settings",
@@ -2085,97 +2062,7 @@ const blip = {
 			label: "ADMIN_TAB_SETTINGS",
 			desc: "ADMIN_TAB_SETTINGS_DESC",
 			cards: [
-				{
-					icon: "money-bill-wave",
-					title: "ADMIN_C_PRICES",
-					desc: "ADMIN_C_PRICES_DESC",
-					fields: [
-						{
-							widget: "tags",
-							lookup: "account",
-							path: "accounts",
-							label: "ADMIN_F_ACCOUNTS",
-							hint: "ADMIN_H_ACCOUNTS",
-							placeholder: "ADMIN_P_ACCOUNTS"
-						},
-						{
-							widget: "number",
-							path: "repairPoint",
-							label: "ADMIN_F_REPAIR_POINT",
-							hint: "ADMIN_H_REPAIR_POINT",
-							min: 0,
-							max: 100,
-							step: .1,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "performance",
-							label: "ADMIN_F_PERFORMANCE",
-							hint: "ADMIN_H_PERFORMANCE",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "turbo",
-							label: "ADMIN_F_TURBO",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "xenon",
-							label: "ADMIN_F_XENON",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "cosmetic",
-							label: "ADMIN_F_COSMETIC",
-							hint: "ADMIN_H_COSMETIC",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "wheels",
-							label: "ADMIN_F_WHEELS",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "paint",
-							label: "ADMIN_F_PAINT",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "tint",
-							label: "ADMIN_F_TINT",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						},
-						{
-							widget: "number",
-							path: "plate",
-							label: "ADMIN_F_PLATE",
-							min: 0,
-							max: 1e6,
-							unit: "$"
-						}
-					]
-				},
+				pricesCard,
 				{
 					icon: "droplet",
 					title: "ADMIN_C_WASHING",
@@ -2364,6 +2251,9 @@ onClientCallback(EVENTS.bill, {
 		}
 	}), { ok: !0 }) : fail("MECH_ERR_BILL");
 });
+// resource/common/locale.ts
+const Locale = createLocale();
+GetCurrentResourceName(), IsDuplicityVersion();
 // resource/server/service.ts
 const stashName = (shopId) => `mechanic_${shopId}`, stashes = new RecordObjects(panel, "shops", readShop, (id, shop) => {
 	if (!shop.job || !shop.stash) return;
@@ -2403,14 +2293,140 @@ function registerKit() {
 registerKit(), panel.onChange("settings", () => {
 	registerKit(), stashes.rebuildAll();
 });
-// resource/server/index.ts
-const propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? void 0);
+// resource/common/tuning.ts
+const PERFORMANCE_MODS = [
+	11,
+	12,
+	13,
+	15,
+	16
+], COSMETIC_MODS = [
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	14,
+	25,
+	26,
+	27,
+	28,
+	29,
+	30,
+	31,
+	32,
+	33,
+	34,
+	35,
+	36,
+	37,
+	38,
+	39,
+	40,
+	41,
+	42,
+	43,
+	44,
+	45,
+	46,
+	48
+], TOGGLE_MODS = [18, 22], PAINTS = [
+	0,
+	1,
+	4,
+	112,
+	27,
+	30,
+	38,
+	89,
+	92,
+	53,
+	64,
+	70,
+	145,
+	135,
+	96,
+	158,
+	120
+], isInt = (v, min, max) => typeof v == "number" && Number.isInteger(v) && v >= min && v <= max, MOD_TYPES = new Set([
+	...PERFORMANCE_MODS,
+	...COSMETIC_MODS,
+	...TOGGLE_MODS
+]);
+function toChange(v) {
+	let c = record(v);
+	switch (c.kind) {
+		case "mod": return isInt(c.type, 0, 48) && MOD_TYPES.has(c.type) && isInt(c.index, -1, 250) ? {
+			kind: "mod",
+			type: c.type,
+			index: c.index
+		} : null;
+		case "wheels": return isInt(c.wheelType, 0, 12) && isInt(c.index, -1, 250) ? {
+			kind: "wheels",
+			wheelType: c.wheelType,
+			index: c.index
+		} : null;
+		case "paint": return (c.slot === 0 || c.slot === 1) && isInt(c.color, 0, 160) && PAINTS.includes(c.color) ? {
+			kind: "paint",
+			slot: c.slot,
+			color: c.color
+		} : null;
+		case "tint": return isInt(c.value, 0, 6) ? {
+			kind: "tint",
+			value: c.value
+		} : null;
+		case "plate": return isInt(c.value, 0, 5) ? {
+			kind: "plate",
+			value: c.value
+		} : null;
+		default: return null;
+	}
+}
+function priceOf(change, s) {
+	switch (change.kind) {
+		case "mod": return change.index < 0 ? 0 : change.type === 18 ? s.turbo : change.type === 22 ? s.xenon : PERFORMANCE_MODS.includes(change.type) ? s.performance * (change.index + 1) : s.cosmetic;
+		case "wheels": return change.index < 0 ? 0 : s.wheels;
+		case "paint": return s.paint;
+		case "tint": return change.value === 0 ? 0 : s.tint;
+		case "plate": return s.plate;
+		default: return change;
+	}
+}
+function applyChange(props, change) {
+	let next = {
+		...props,
+		mods: { ...props.mods },
+		colors: [...props.colors]
+	};
+	switch (change.kind) {
+		case "mod":
+			next.mods[change.type] = TOGGLE_MODS.includes(change.type) ? +(change.index >= 0) : change.index;
+			break;
+		case "wheels":
+			next.wheelType = change.wheelType, next.mods[23] = change.index;
+			break;
+		case "paint":
+			next.colors[change.slot] = change.color, change.slot === 0 ? next.customPrimary = null : next.customSecondary = null;
+			break;
+		case "tint":
+			next.windowTint = change.value;
+			break;
+		case "plate": next.plateIndex = change.value;
+	}
+	return next;
+}
+// resource/server/driven.ts
+const driven = (source, netId) => vehicleNearPlayer(source, netId, { driver: !0 }), propsState = new EntityState(VEHICLE_BAGS.props, (v) => toVehicleProps(v) ?? void 0);
 aiLogChannels({
 	tuning: { active: !1 },
 	repairs: { active: !1 }
-});
-const driven = (source, netId) => vehicleNearPlayer(source, netId, { driver: !0 });
-onClientCallback(EVENTS.buy, {
+}), onClientCallback(EVENTS.buy, {
 	args: ([netId, raw, base]) => {
 		let id = readId(netId), change = toChange(raw), props = base == null ? null : toVehicleProps(base);
 		return id !== null && change && (base == null || props) ? [
@@ -2488,6 +2504,7 @@ onClientCallback(EVENTS.repair, {
 		}
 	}), { ok: !0 };
 });
+// resource/server/wash.ts
 function washable(source, netId) {
 	let p = coordsOf(source);
 	if (![...content.washes.values()].some((w) => distance(p, w.coords) <= 10)) return "MECH_ERR_FAR";

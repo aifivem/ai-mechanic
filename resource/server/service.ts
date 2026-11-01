@@ -18,7 +18,8 @@ import {
   RecordObjects,
 } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
-import { EVENTS, readShop } from "common/mechanic";
+import { EVENTS } from "common/mechanic";
+import { readShop } from "common/shop";
 import { canUse, content, ownedId, panel } from "./content";
 
 /**

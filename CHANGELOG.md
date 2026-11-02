@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.4](https://github.com/aifivem/ai-mechanic/compare/v0.2.3...v0.2.4) (2026-11-02)
+
+
+### Documentation
+
+* install from the release zip ([4988bc7](https://github.com/aifivem/ai-mechanic/commit/4988bc7dbe48eac94ed55b9f393b55a905bb9420))
+
+
+### Miscellaneous Chores
+
+* build files are no longer in git, the release zip carries them ([212ad30](https://github.com/aifivem/ai-mechanic/commit/212ad3023e48dd982b6173f54f713dbb9c41a57e))
+
 ## [0.2.3](https://github.com/aifivem/ai-mechanic/compare/v0.2.2...v0.2.3) (2026-11-02)
 
 

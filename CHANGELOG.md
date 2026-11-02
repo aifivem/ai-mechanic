@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/aifivem/ai-mechanic/compare/v0.2.2...v0.2.3) (2026-11-02)
+
+
+### Code Refactoring
+
+* import the shared packages from [@aifivem](https://github.com/aifivem) ([db92f5b](https://github.com/aifivem/ai-mechanic/commit/db92f5b84108aab2d7cf6d63a300a18c8fa6a56b))
+
 ## [0.2.2](https://github.com/aifivem/ai-mechanic/compare/v0.2.1...v0.2.2) (2026-11-01)
 
 

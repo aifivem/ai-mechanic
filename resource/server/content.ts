@@ -4,8 +4,8 @@ import {
   online,
   optionalExport,
   resourceExport,
-} from "@aicore-fivem/lib/server";
-import { distance, record } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/server";
+import { distance, record } from "@aifivem/lib/shared";
 import { readSettings } from "common/settings";
 import { readShop, readWash, type Shop } from "common/shop";
 import { mechanicSchema } from "./schema";

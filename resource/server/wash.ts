@@ -2,8 +2,8 @@ import {
   coordsOf,
   onClientCallback,
   progressFor,
-} from "@aicore-fivem/lib/server";
-import { distance, fail, oneArg, readId } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/server";
+import { distance, fail, oneArg, readId } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/mechanic";
 import { content, pay } from "./content";

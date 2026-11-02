@@ -6,15 +6,15 @@ import {
   onClientCallback,
   optionalExport,
   plateOf,
-} from "@aicore-fivem/lib/server";
+} from "@aifivem/lib/server";
 import {
   fail,
   oneArg,
   readId,
   toVehicleProps,
   type VehicleProps,
-} from "@aicore-fivem/lib/shared";
-import { VEHICLE_BAGS } from "@aicore-fivem/shared";
+} from "@aifivem/lib/shared";
+import { VEHICLE_BAGS } from "@aifivem/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/mechanic";
 import { applyChange, priceOf, toChange, type Change } from "common/tuning";

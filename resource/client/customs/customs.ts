@@ -1,5 +1,5 @@
-import { cache, menu, notify } from "@aicore-fivem/lib/client";
-import type { MenuItem } from "@aicore-fivem/shared";
+import { cache, menu, notify } from "@aifivem/lib/client";
+import type { MenuItem } from "@aifivem/shared";
 import { Locale } from "common";
 import type { Settings } from "common/settings";
 import type { Shop } from "common/shop";

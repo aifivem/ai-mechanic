@@ -1,4 +1,4 @@
-import { record, type VehicleProps } from "@aicore-fivem/lib/shared";
+import { record, type VehicleProps } from "@aifivem/lib/shared";
 import type { Settings } from "./settings";
 
 /** The tuning change rules: price and props of one purchase, the same on both sides. No natives. */

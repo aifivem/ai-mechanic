@@ -3,9 +3,9 @@ import {
   getVehicleProps,
   menu,
   setVehicleProps,
-} from "@aicore-fivem/lib/client";
-import type { VehicleProps } from "@aicore-fivem/lib/shared";
-import type { MenuItem } from "@aicore-fivem/shared";
+} from "@aifivem/lib/client";
+import type { VehicleProps } from "@aifivem/lib/shared";
+import type { MenuItem } from "@aifivem/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/mechanic";
 import type { Settings } from "common/settings";

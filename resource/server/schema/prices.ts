@@ -1,4 +1,4 @@
-import type { CardSpec } from "@aicore-fivem/shared";
+import type { CardSpec } from "@aifivem/shared";
 
 /** The settings tab's price card: repairs and every tuning group. */
 export const pricesCard: CardSpec = {

@@ -1,4 +1,4 @@
-import type { VehicleProps } from "@aicore-fivem/lib/shared";
+import type { VehicleProps } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { PAINTS, WHEEL_MOD, type Change } from "common/tuning";
 import { text } from "./labels";

@@ -7,7 +7,7 @@ import {
   readPlacePed,
   record,
   str,
-} from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/shared";
 
 /** ai-mechanic's shop and car wash records (both sides). */
 

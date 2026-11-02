@@ -10,13 +10,13 @@ import {
   progressFor,
   SourceLock,
   vehicleOf,
-} from "@aicore-fivem/lib/server";
+} from "@aifivem/lib/server";
 import {
   fail,
   oneArg,
   readText,
   RecordObjects,
-} from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS } from "common/mechanic";
 import { readShop } from "common/shop";

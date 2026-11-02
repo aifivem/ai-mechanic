@@ -5,7 +5,7 @@ import {
   notify,
   onDutyIn,
   radial,
-} from "@aicore-fivem/lib/client";
+} from "@aifivem/lib/client";
 import { Locale } from "common";
 import { BILL_METRES, BILL_REASON_MAX, EVENTS } from "common/mechanic";
 import { mechanicJobs } from "common/shop";
